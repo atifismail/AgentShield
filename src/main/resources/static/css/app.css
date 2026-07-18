@@ -23,8 +23,11 @@ body {
 .status-badge-warning { background-color: #fd7e14; }
 .status-badge-critical { background-color: #6f0000; }
 .status-badge-open { background-color: #dc3545; }
-.status-badge-investigating { background-color: #fd7e14; }
-.status-badge-resolved, .status-badge-closed { background-color: #6c757d; }
+.status-badge-acknowledged { background-color: #fd7e14; }
+.status-badge-resolved { background-color: #6c757d; }
+.status-badge-false_positive { background-color: #0d6efd; }
+.status-badge-active { background-color: #198754; }
+.status-badge-revoked { background-color: #dc3545; }
 
 code.hash {
     font-size: 0.8rem;

@@ -2,7 +2,7 @@ package com.agentshield.common;
 
 public enum IncidentStatus {
     OPEN,
-    INVESTIGATING,
+    ACKNOWLEDGED,
     RESOLVED,
-    CLOSED
+    FALSE_POSITIVE
 }

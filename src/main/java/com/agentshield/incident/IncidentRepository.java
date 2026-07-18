@@ -1,5 +1,6 @@
 package com.agentshield.incident;
 
+import com.agentshield.common.AuditSeverity;
 import com.agentshield.common.IncidentStatus;
 import java.util.List;
 import org.springframework.data.domain.Page;
@@ -11,6 +12,8 @@ public interface IncidentRepository extends JpaRepository<Incident, Long> {
     List<Incident> findTop5ByOrderByCreatedAtDesc();
 
     long countByStatus(IncidentStatus status);
+
+    long countBySeverityAndStatusNot(AuditSeverity severity, IncidentStatus status);
 
     Page<Incident> findAllByOrderByCreatedAtDesc(Pageable pageable);
 }

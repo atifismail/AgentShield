@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{layout/fragments :: head(title='Agent detail')}"></head>
+<body>
+<nav th:replace="~{layout/fragments :: navbar}"></nav>
+<main class="container-fluid py-4">
+    <p><a th:href="@{/agents}">&larr; Back to agents</a></p>
+    <h1 class="h3 mb-1" th:text="${agent.name}">agent-01</h1>
+    <p><span class="badge" th:classappend="'status-badge-' + ${#strings.toLowerCase(agent.status)}" th:text="${agent.status}">ENABLED</span></p>
+
+    <div class="row g-3 mt-1">
+        <div class="col-lg-6">
+            <div class="card">
+                <div class="card-header">Details</div>
+                <ul class="list-group list-group-flush">
+                    <li class="list-group-item"><strong>Owner:</strong> <span th:text="${agent.owner}">-</span></li>
+                    <li class="list-group-item"><strong>Environment:</strong> <span th:text="${agent.environment}">-</span></li>
+                    <li class="list-group-item"><strong>Description:</strong> <span th:text="${agent.description}">-</span></li>
+                    <li class="list-group-item"><strong>Allowed tool groups:</strong> <span th:text="${#strings.setJoin(agent.allowedToolGroupSet(), ', ')}">groups</span></li>
+                    <li class="list-group-item"><strong>Updated:</strong> <span th:text="${#temporals.format(agent.updatedAt, 'yyyy-MM-dd HH:mm')}">-</span></li>
+                </ul>
+            </div>
+        </div>
+        <div class="col-lg-6">
+            <div class="card">
+                <div class="card-header">Credentials</div>
+                <ul class="list-group list-group-flush">
+                    <li class="list-group-item text-secondary" th:if="${#lists.isEmpty(credentials)}">No credentials issued.</li>
+                    <li class="list-group-item" th:each="c : ${credentials}">
+                        <div class="d-flex justify-content-between">
+                            <code th:text="${c.tokenPrefix} + '…'">abcd1234…</code>
+                            <span class="badge" th:classappend="'status-badge-' + ${#strings.toLowerCase(c.status)}" th:text="${c.status}">ACTIVE</span>
+                        </div>
+                        <div class="text-secondary small">
+                            Issued <span th:text="${#temporals.format(c.createdAt, 'yyyy-MM-dd HH:mm')}"></span>
+                            <span th:if="${c.expiresAt}">, expires <span th:text="${#temporals.format(c.expiresAt, 'yyyy-MM-dd HH:mm')}"></span></span>
+                            <span th:if="${c.lastUsedAt}">, last used <span th:text="${#temporals.format(c.lastUsedAt, 'yyyy-MM-dd HH:mm')}"></span></span>
+                        </div>
+                    </li>
+                </ul>
+            </div>
+        </div>
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">Recent calls</div>
+                <div class="card-body">
+                    <table class="table table-hover align-middle">
+                        <thead>
+                        <tr><th>Created</th><th>Tool</th><th>Action</th><th>Status</th></tr>
+                        </thead>
+                        <tbody>
+                        <tr th:if="${#lists.isEmpty(recentRequests.content)}">
+                            <td colspan="4" class="text-secondary">No calls recorded.</td>
+                        </tr>
+                        <tr th:each="r : ${recentRequests.content}">
+                            <td><a th:href="@{'/gateway-requests/' + ${r.id}}" th:text="${#temporals.format(r.createdAt, 'yyyy-MM-dd HH:mm:ss')}">-</a></td>
+                            <td th:text="${r.tool != null ? r.tool.name : '(unregistered)'}">tool</td>
+                            <td th:text="${r.actionName}">action</td>
+                            <td><span class="badge" th:classappend="'status-badge-' + ${#strings.toLowerCase(r.status)}" th:text="${r.status}">ALLOWED</span></td>
+                        </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</main>
+<div th:replace="~{layout/fragments :: scripts}"></div>
+</body>
+</html>

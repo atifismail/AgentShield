@@ -29,7 +29,7 @@
                 </thead>
                 <tbody>
                 <tr th:each="agent : ${agents}" th:attr="data-agent-id=${agent.id}">
-                    <td th:text="${agent.name}">agent-01</td>
+                    <td><a th:href="@{'/agents/' + ${agent.id}}" th:text="${agent.name}">agent-01</a></td>
                     <td>
                         <span class="badge" th:classappend="'status-badge-' + ${#strings.toLowerCase(agent.status)}"
                               th:text="${agent.status}">ENABLED</span>

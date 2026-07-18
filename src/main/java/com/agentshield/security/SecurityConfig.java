@@ -54,6 +54,7 @@ public class SecurityConfig {
             auth.requestMatchers("/api/tools/*/approve", "/api/tools/*/reject").hasAnyRole("ADMIN", "TOOL_OWNER", "SECURITY_ANALYST");
             auth.requestMatchers("/api/policies/**", "/api/policy-overrides/**").hasAnyRole("ADMIN", "SECURITY_ANALYST");
             auth.requestMatchers("/api/approvals/*/approve", "/api/approvals/*/reject").hasAnyRole("ADMIN", "APPROVER");
+            auth.requestMatchers("/api/incidents/*/status").hasAnyRole("ADMIN", "SECURITY_ANALYST");
             auth.anyRequest().authenticated();
         });
 

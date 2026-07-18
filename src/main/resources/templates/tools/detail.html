@@ -46,6 +46,16 @@
                 </ul>
             </div>
         </div>
+        <div class="col-12" th:if="${driftDiff != null}">
+            <div class="card">
+                <div class="card-header">Drift diff (last-approved vs. current fingerprint)</div>
+                <div class="card-body">
+                    <pre class="mb-0 small"><code><span th:each="line : ${driftDiff}"
+                        th:class="${line.type == 'added'} ? 'text-success d-block' : (${line.type == 'removed'} ? 'text-danger d-block' : 'd-block')"
+                        th:text="${(line.type == 'added' ? '+ ' : (line.type == 'removed' ? '- ' : '  ')) + line.text}">line</span></code></pre>
+                </div>
+            </div>
+        </div>
     </div>
 </main>
 <div th:replace="~{layout/fragments :: scripts}"></div>

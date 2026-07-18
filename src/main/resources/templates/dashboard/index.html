@@ -17,7 +17,15 @@
         <div class="col-md-4 col-lg-2">
             <div class="card bg-body-tertiary h-100">
                 <div class="card-body">
-                    <div class="text-secondary small">Denied</div>
+                    <div class="text-secondary small">Allowed (24h)</div>
+                    <div class="fs-3 fw-semibold text-success" th:text="${stats?.allowCount ?: 0}">0</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4 col-lg-2">
+            <div class="card bg-body-tertiary h-100">
+                <div class="card-body">
+                    <div class="text-secondary small">Denied (24h)</div>
                     <div class="fs-3 fw-semibold text-danger" th:text="${stats?.denyCount ?: 0}">0</div>
                 </div>
             </div>
@@ -51,6 +59,14 @@
                 <div class="card-body">
                     <div class="text-secondary small">Open Incidents</div>
                     <div class="fs-3 fw-semibold" th:text="${stats?.openIncidentCount ?: 0}">0</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4 col-lg-2">
+            <div class="card bg-body-tertiary h-100">
+                <div class="card-body">
+                    <div class="text-secondary small">Critical Incidents</div>
+                    <div class="fs-3 fw-semibold text-danger" th:text="${stats?.criticalIncidentCount ?: 0}">0</div>
                 </div>
             </div>
         </div>

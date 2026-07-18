@@ -165,6 +165,7 @@ security audit trail.
 |---|---|---|
 | GET | `/api/incidents?page=&size=` | List, newest first |
 | GET | `/api/incidents/{id}` | Detail — links back to `relatedAuditEventId` / `relatedGatewayRequestId` |
+| PATCH | `/api/incidents/{id}/status` | ADMIN/SECURITY_ANALYST. Body `{"status": "OPEN\|ACKNOWLEDGED\|RESOLVED\|FALSE_POSITIVE"}` |
 
 ## Error shape
 

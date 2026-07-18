@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{layout/fragments :: head(title='Gateway request detail')}"></head>
+<body>
+<nav th:replace="~{layout/fragments :: navbar}"></nav>
+<main class="container-fluid py-4">
+    <p><a th:href="@{/gateway-requests}">&larr; Back to gateway requests</a></p>
+    <h1 class="h3 mb-1">
+        <span th:text="${request.actionName}">deleteRecords</span> on
+        <span th:text="${request.tool != null ? request.tool.name : '(unregistered)'}">tool</span>
+    </h1>
+    <p>
+        <span class="badge" th:classappend="'status-badge-' + ${#strings.toLowerCase(request.status)}" th:text="${request.status}">DENIED</span>
+    </p>
+
+    <div class="row g-3 mt-1">
+        <div class="col-lg-6">
+            <div class="card">
+                <div class="card-header">Request metadata</div>
+                <ul class="list-group list-group-flush">
+                    <li class="list-group-item"><strong>Agent:</strong> <a th:href="@{'/agents/' + ${request.agent.id}}" th:text="${request.agent.name}">agent-01</a></li>
+                    <li class="list-group-item"><strong>Action category:</strong> <span th:text="${request.actionCategory}">WRITE</span></li>
+                    <li class="list-group-item"><strong>Target environment:</strong> <span th:text="${request.targetEnvironment}">DEV</span></li>
+                    <li class="list-group-item"><strong>Created:</strong> <span th:text="${#temporals.format(request.createdAt, 'yyyy-MM-dd HH:mm:ss')}">-</span></li>
+                    <li class="list-group-item"><strong>Correlation:</strong>
+                        <a th:href="@{'/audit/correlation/' + ${request.correlationId}}" th:text="${request.correlationId}">id</a>
+                    </li>
+                    <li class="list-group-item"><strong>Request body hash:</strong> <code th:text="${request.requestBodyHash}">-</code></li>
+                </ul>
+            </div>
+        </div>
+        <div class="col-lg-6">
+            <div class="card">
+                <div class="card-header">Policy decision &amp; risk</div>
+                <div class="card-body" th:if="${policyDecision != null}">
+                    <p><span class="badge" th:text="${policyDecision.decision}">DENY</span>
+                        <span class="badge" th:text="${policyDecision.riskLevel}">HIGH</span>
+                        risk score <strong th:text="${policyDecision.riskScore}">70</strong></p>
+                    <p th:text="${policyDecision.reason}">reason</p>
+                    <p class="text-secondary small" th:if="${policyDecision.policyVersion}">Policy version: <span th:text="${policyDecision.policyVersion}"></span></p>
+                </div>
+                <div class="card-body text-secondary" th:if="${policyDecision == null}">No policy decision recorded yet.</div>
+            </div>
+        </div>
+        <div class="col-lg-6" th:if="${approval != null}">
+            <div class="card">
+                <div class="card-header">Approval state</div>
+                <div class="card-body">
+                    <p>Status: <span class="badge" th:text="${approval.status}">PENDING</span></p>
+                    <p th:if="${approval.approvedBy}">Approved by <span th:text="${approval.approvedBy}"></span> at <span th:text="${#temporals.format(approval.approvedAt, 'yyyy-MM-dd HH:mm')}"></span></p>
+                    <p th:if="${approval.rejectedBy}">Rejected by <span th:text="${approval.rejectedBy}"></span> at <span th:text="${#temporals.format(approval.rejectedAt, 'yyyy-MM-dd HH:mm')}"></span></p>
+                    <p class="text-secondary small">Expires: <span th:text="${#temporals.format(approval.expiresAt, 'yyyy-MM-dd HH:mm')}"></span></p>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-6" th:if="${toolResponse != null}">
+            <div class="card">
+                <div class="card-header">Response scan result</div>
+                <div class="card-body">
+                    <p>Status code: <span th:text="${toolResponse.statusCode != null ? toolResponse.statusCode : '-'}">200</span></p>
+                    <p>Blocked: <span th:text="${toolResponse.blocked}">false</span></p>
+                    <p th:if="${toolResponse.blockReason}">Block reason: <span th:text="${toolResponse.blockReason}"></span></p>
+                    <p th:if="${toolResponse.detectorMatchesJson}">Detector matches: <code th:text="${toolResponse.detectorMatchesJson}">[]</code></p>
+                    <p>Response body SHA-256: <code th:text="${toolResponse.responseBodyHash}">hash</code></p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <p class="mt-3"><a th:href="@{'/audit/correlation/' + ${request.correlationId}}">View full audit timeline &rarr;</a></p>
+</main>
+<div th:replace="~{layout/fragments :: scripts}"></div>
+</body>
+</html>

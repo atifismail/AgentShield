@@ -22,7 +22,7 @@
                 </thead>
                 <tbody>
                 <tr th:each="r : ${requestsPage.content}">
-                    <td th:text="${#temporals.format(r.createdAt, 'yyyy-MM-dd HH:mm:ss')}">-</td>
+                    <td><a th:href="@{'/gateway-requests/' + ${r.id}}" th:text="${#temporals.format(r.createdAt, 'yyyy-MM-dd HH:mm:ss')}">-</a></td>
                     <td th:text="${r.agent != null ? r.agent.name : '-'}">agent-01</td>
                     <td th:text="${r.tool != null ? r.tool.name : '(unregistered)'}">mock-git</td>
                     <td th:text="${r.actionName}">commit</td>

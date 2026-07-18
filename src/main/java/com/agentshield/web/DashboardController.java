@@ -2,6 +2,7 @@ package com.agentshield.web;
 
 import com.agentshield.approval.ApprovalRequestRepository;
 import com.agentshield.common.ApprovalStatus;
+import com.agentshield.common.AuditSeverity;
 import com.agentshield.common.IncidentStatus;
 import com.agentshield.common.PolicyDecisionType;
 import com.agentshield.common.RiskLevel;
@@ -61,13 +62,15 @@ public class DashboardController {
                 .distinct()
                 .count();
 
-        Map<String, Object> stats = Map.of(
-                "requestCount", gatewayRequestRepository.countByCreatedAtAfter(since24h),
-                "denyCount", policyDecisionRepository.countByDecisionAndCreatedAtAfter(PolicyDecisionType.DENY, since24h),
-                "pendingApprovalCount", approvalRequestRepository.countByStatus(ApprovalStatus.PENDING),
-                "highRiskAgentCount", highRiskAgentCount,
-                "toolDriftCount", toolRepository.countByApprovalStatus(ToolApprovalStatus.DRIFTED),
-                "openIncidentCount", incidentRepository.countByStatus(IncidentStatus.OPEN));
+        Map<String, Object> stats = new LinkedHashMap<>();
+        stats.put("requestCount", gatewayRequestRepository.countByCreatedAtAfter(since24h));
+        stats.put("allowCount", policyDecisionRepository.countByDecisionAndCreatedAtAfter(PolicyDecisionType.ALLOW, since24h));
+        stats.put("denyCount", policyDecisionRepository.countByDecisionAndCreatedAtAfter(PolicyDecisionType.DENY, since24h));
+        stats.put("pendingApprovalCount", approvalRequestRepository.countByStatus(ApprovalStatus.PENDING));
+        stats.put("highRiskAgentCount", highRiskAgentCount);
+        stats.put("toolDriftCount", toolRepository.countByApprovalStatus(ToolApprovalStatus.DRIFTED));
+        stats.put("openIncidentCount", incidentRepository.countByStatus(IncidentStatus.OPEN));
+        stats.put("criticalIncidentCount", incidentRepository.countBySeverityAndStatusNot(AuditSeverity.CRITICAL, IncidentStatus.RESOLVED));
 
         model.addAttribute("pageTitle", "Dashboard");
         model.addAttribute("stats", stats);

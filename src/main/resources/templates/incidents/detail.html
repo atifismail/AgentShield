@@ -12,6 +12,18 @@
     </p>
     <p th:text="${incident.summary}">summary</p>
 
+    <div id="alertHost"></div>
+    <div class="btn-group btn-group-sm mb-3" th:attr="data-incident-id=${incident.id}">
+        <button type="button" class="btn btn-outline-warning" th:if="${incident.status.name() != 'ACKNOWLEDGED'}"
+                th:attr="data-incident-id=${incident.id}" data-incident-status="ACKNOWLEDGED">Acknowledge</button>
+        <button type="button" class="btn btn-outline-secondary" th:if="${incident.status.name() != 'RESOLVED'}"
+                th:attr="data-incident-id=${incident.id}" data-incident-status="RESOLVED">Resolve</button>
+        <button type="button" class="btn btn-outline-primary" th:if="${incident.status.name() != 'FALSE_POSITIVE'}"
+                th:attr="data-incident-id=${incident.id}" data-incident-status="FALSE_POSITIVE">Mark false positive</button>
+        <button type="button" class="btn btn-outline-danger" th:if="${incident.status.name() != 'OPEN'}"
+                th:attr="data-incident-id=${incident.id}" data-incident-status="OPEN">Reopen</button>
+    </div>
+
     <div class="row g-3 mt-2">
         <div class="col-lg-6" th:if="${auditEvent != null}">
             <div class="card">
@@ -31,6 +43,7 @@
                         <span th:text="${gatewayRequest.tool != null ? gatewayRequest.tool.name : '-'}">tool</span></p>
                     <p>Agent: <span th:text="${gatewayRequest.agent.name}">agent</span></p>
                     <p>Status: <span th:text="${gatewayRequest.status}">DENIED</span></p>
+                    <a th:href="@{'/gateway-requests/' + ${gatewayRequest.id}}">View full request detail &rarr;</a>
                 </div>
             </div>
         </div>
@@ -52,5 +65,6 @@
     </div>
 </main>
 <div th:replace="~{layout/fragments :: scripts}"></div>
+<script th:src="@{/js/incidents.js}"></script>
 </body>
 </html>
