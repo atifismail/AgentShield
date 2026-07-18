@@ -32,6 +32,7 @@ import com.agentshield.tool.ToolApprovalStatus;
 import com.agentshield.tool.ToolRepository;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ArrayNode;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.time.Instant;
@@ -66,6 +67,8 @@ public class GatewayService {
     private final AuditService auditService;
     private final IncidentService incidentService;
     private final ObjectMapper objectMapper;
+    private final GatewayToolResponseRepository toolResponseRepository;
+    private final RawResponseEncryptor rawResponseEncryptor;
     private final int maxPayloadBytes;
     private final int defaultApprovalExpirationMinutes;
 
@@ -74,6 +77,7 @@ public class GatewayService {
             ApprovalRequestRepository approvalRequestRepository, PolicyEngine policyEngine, RiskScorer riskScorer,
             PromptInjectionDetector injectionDetector, SecretDetector secretDetector, ToolForwarder toolForwarder,
             AuditService auditService, IncidentService incidentService, ObjectMapper objectMapper,
+            GatewayToolResponseRepository toolResponseRepository, RawResponseEncryptor rawResponseEncryptor,
             @Value("${agentshield.gateway.max-payload-bytes:262144}") int maxPayloadBytes,
             @Value("${agentshield.approval.default-expiration-minutes:60}") int defaultApprovalExpirationMinutes) {
         this.agentCredentialRepository = agentCredentialRepository;
@@ -89,6 +93,8 @@ public class GatewayService {
         this.auditService = auditService;
         this.incidentService = incidentService;
         this.objectMapper = objectMapper;
+        this.toolResponseRepository = toolResponseRepository;
+        this.rawResponseEncryptor = rawResponseEncryptor;
         this.maxPayloadBytes = maxPayloadBytes;
         this.defaultApprovalExpirationMinutes = defaultApprovalExpirationMinutes;
     }
@@ -219,8 +225,12 @@ public class GatewayService {
         var secretResult = secretDetector.scan(callResult.rawBody());
         var injectionResult = injectionDetector.scan(callResult.rawBody());
         PolicyOutcome responseOutcome = policyEngine.evaluateResponse(destinationExternal, secretResult, injectionResult);
+        boolean blocked = !responseOutcome.isAllow();
 
-        if (!responseOutcome.isAllow()) {
+        recordToolResponse(gatewayRequest, callResult, blocked, blocked ? responseOutcome.reason() : null,
+                secretResult, injectionResult);
+
+        if (blocked) {
             RiskInput rescored = RiskInput.builder(actionCategory)
                     .secretDetected(secretResult.matched())
                     .promptInjectionDetected(injectionResult.matched())
@@ -260,6 +270,44 @@ public class GatewayService {
         gatewayRequest.setRequestBodyJson(inputJson);
         gatewayRequest.setStatus(GatewayRequestStatus.ALLOWED);
         return gatewayRequestRepository.save(gatewayRequest);
+    }
+
+    /**
+     * Forensic record of what the tool actually returned, without storing the raw body by
+     * default (improvement_plan.md #7). response_summary is a preview of the raw body when the
+     * response was clean/ALLOWed (the agent already received exactly this content, so storing a
+     * preview of it isn't a new exposure) — but when the response was blocked, it's replaced
+     * with just the matched detector indicator names, never the raw matched text.
+     */
+    private void recordToolResponse(GatewayRequest gatewayRequest, ToolForwarder.ToolCallResult callResult,
+            boolean blocked, String blockReason, com.agentshield.risk.DetectionResult secretResult,
+            com.agentshield.risk.DetectionResult injectionResult) {
+        GatewayToolResponse response = new GatewayToolResponse();
+        response.setGatewayRequest(gatewayRequest);
+        response.setStatusCode(callResult.statusCode());
+        response.setBlocked(blocked);
+        response.setBlockReason(blockReason);
+
+        String rawBody = callResult.rawBody();
+        if (rawBody != null) {
+            response.setResponseBodyHash(TokenHasher.sha256Hex(rawBody));
+        }
+        response.setResponseSummary(blocked
+                ? "[response blocked — see block_reason and detector_matches_json]"
+                : truncate(rawBody));
+
+        ArrayNode matches = objectMapper.createArrayNode();
+        secretResult.matchedIndicators().forEach(matches::add);
+        injectionResult.matchedIndicators().forEach(matches::add);
+        if (!matches.isEmpty()) {
+            response.setDetectorMatchesJson(matches.toString());
+        }
+
+        if (rawResponseEncryptor.isEnabled() && rawBody != null) {
+            response.setRawResponseEncrypted(rawResponseEncryptor.encrypt(rawBody));
+        }
+
+        toolResponseRepository.save(response);
     }
 
     private void recordDecision(GatewayRequest gatewayRequest, PolicyDecisionType decision, String reason,

@@ -59,8 +59,8 @@ public class ToolForwarder {
         if (tool.isMcpBacked()) {
             var result = mcpToolInvoker.invoke(tool.getMcpServerId(), tool.getMcpToolName(), input);
             return result.success()
-                    ? new ToolCallResult(true, false, result.rawBody(), result.parsedBody(), null)
-                    : new ToolCallResult(false, false, null, null, result.errorMessage());
+                    ? new ToolCallResult(true, false, null, result.rawBody(), result.parsedBody(), null)
+                    : new ToolCallResult(false, false, null, null, null, result.errorMessage());
         }
         return callHttp(tool.getEndpointUrl(), input);
     }
@@ -89,9 +89,9 @@ public class ToolForwarder {
 
             String rawBody = responseEntity.getBody();
             JsonNode parsed = parseOrWrap(rawBody);
-            return new ToolCallResult(true, false, rawBody, parsed, null);
+            return new ToolCallResult(true, false, responseEntity.getStatusCode().value(), rawBody, parsed, null);
         } catch (Exception e) {
-            return new ToolCallResult(false, false, null, null, e.getMessage());
+            return new ToolCallResult(false, false, null, null, null, e.getMessage());
         }
     }
 
@@ -106,11 +106,11 @@ public class ToolForwarder {
         }
     }
 
-    public record ToolCallResult(boolean success, boolean blockedByPolicy, String rawBody, JsonNode parsedBody,
-            String errorMessage) {
+    public record ToolCallResult(boolean success, boolean blockedByPolicy, Integer statusCode, String rawBody,
+            JsonNode parsedBody, String errorMessage) {
 
         static ToolCallResult blocked(String reason) {
-            return new ToolCallResult(false, true, null, null, reason);
+            return new ToolCallResult(false, true, null, null, null, reason);
         }
     }
 }

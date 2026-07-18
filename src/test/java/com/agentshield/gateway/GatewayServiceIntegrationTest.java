@@ -59,6 +59,8 @@ class GatewayServiceIntegrationTest extends AbstractIntegrationTest {
     private ApprovalService approvalService;
     @Autowired
     private ObjectMapper objectMapper;
+    @Autowired
+    private GatewayToolResponseRepository toolResponseRepository;
 
     private final TestRestTemplate rest = new TestRestTemplate();
     private String plaintextToken;
@@ -84,6 +86,13 @@ class GatewayServiceIntegrationTest extends AbstractIntegrationTest {
         agentCredentialRepository.save(credential);
 
         return agent;
+    }
+
+    private GatewayToolResponse latestToolResponse(Agent agent) {
+        GatewayRequest latest = gatewayRequestRepository
+                .findByAgentIdOrderByCreatedAtDesc(agent.getId(), org.springframework.data.domain.PageRequest.of(0, 1))
+                .getContent().get(0);
+        return toolResponseRepository.findByGatewayRequestId(latest.getId()).orElseThrow();
     }
 
     private Tool createTool(ToolApprovalStatus status, String group, String endpointPath) {
@@ -121,7 +130,7 @@ class GatewayServiceIntegrationTest extends AbstractIntegrationTest {
 
     @Test
     void allowedCallForwardsToToolAndReturnsResult() {
-        createAgent(AgentStatus.ENABLED, "database");
+        Agent agent = createAgent(AgentStatus.ENABLED, "database");
         Tool tool = createTool(ToolApprovalStatus.APPROVED, "database", "/demo/mock-tool/echo");
 
         var response = invoke(tool, ActionCategory.READ, "DEV");
@@ -129,6 +138,14 @@ class GatewayServiceIntegrationTest extends AbstractIntegrationTest {
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
         assertThat(response.getBody().decision()).isEqualTo(PolicyDecisionType.ALLOW);
         assertThat(response.getBody().result().get("key").asText()).isEqualTo("value");
+
+        GatewayToolResponse toolResponse = latestToolResponse(agent);
+        assertThat(toolResponse.getStatusCode()).isEqualTo(200);
+        assertThat(toolResponse.isBlocked()).isFalse();
+        assertThat(toolResponse.getResponseBodyHash()).isNotBlank();
+        assertThat(toolResponse.getResponseSummary()).contains("value");
+        // raw retention is off by default (agentshield.audit.retain-raw-tool-responses=false)
+        assertThat(toolResponse.getRawResponseEncrypted()).isNull();
     }
 
     @Test
@@ -317,7 +334,7 @@ class GatewayServiceIntegrationTest extends AbstractIntegrationTest {
 
     @Test
     void secretInResponseIsBlockedForExternalTransferAndCreatesIncident() {
-        createAgent(AgentStatus.ENABLED, "saas");
+        Agent agent = createAgent(AgentStatus.ENABLED, "saas");
         Tool tool = createTool(ToolApprovalStatus.APPROVED, "saas", "/demo/mock-tool/secret");
 
         var response = invoke(tool, ActionCategory.EXTERNAL_TRANSFER, "DEV");
@@ -330,11 +347,19 @@ class GatewayServiceIntegrationTest extends AbstractIntegrationTest {
         assertThat(executed.executionResult().decision()).isEqualTo(PolicyDecisionType.DENY);
         assertThat(executed.executionResult().reason()).contains("secret-like value");
         assertThat(incidentRepository.count()).isEqualTo(incidentsBefore + 1);
+
+        GatewayToolResponse toolResponse = latestToolResponse(agent);
+        assertThat(toolResponse.isBlocked()).isTrue();
+        assertThat(toolResponse.getBlockReason()).contains("secret-like value");
+        // response_summary must never leak the raw matched secret text when blocked
+        assertThat(toolResponse.getResponseSummary()).doesNotContain("ABCDEF1234567890").contains("blocked");
+        assertThat(toolResponse.getDetectorMatchesJson()).isNotBlank();
+        assertThat(toolResponse.getResponseBodyHash()).isNotBlank();
     }
 
     @Test
     void promptInjectionInResponseIsBlockedAndCreatesIncident() {
-        createAgent(AgentStatus.ENABLED, "database");
+        Agent agent = createAgent(AgentStatus.ENABLED, "database");
         Tool tool = createTool(ToolApprovalStatus.APPROVED, "database", "/demo/mock-tool/injection");
 
         long incidentsBefore = incidentRepository.count();
@@ -343,6 +368,10 @@ class GatewayServiceIntegrationTest extends AbstractIntegrationTest {
         assertThat(response.getBody().decision()).isEqualTo(PolicyDecisionType.DENY);
         assertThat(response.getBody().reason()).contains("prompt-injection");
         assertThat(incidentRepository.count()).isEqualTo(incidentsBefore + 1);
+
+        GatewayToolResponse toolResponse = latestToolResponse(agent);
+        assertThat(toolResponse.isBlocked()).isTrue();
+        assertThat(toolResponse.getDetectorMatchesJson()).isNotBlank();
     }
 
     @Test

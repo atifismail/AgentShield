@@ -46,7 +46,7 @@ MCP Servers / APIs / Databases / Git / Filesystem / Cloud Tools
 2. Gateway authenticates the agent and persists a `GatewayRequest`.
 3. Policy engine evaluates the 10 default rules against the request (agent status, tool approval/drift state, environment, action category, allowed tool groups, payload size).
 4. Risk engine scores the request.
-5. If ALLOW: the gateway forwards the call to the tool's registered endpoint, scans the response for secrets/prompt-injection, and returns the result to the agent.
+5. If ALLOW: the gateway forwards the call to the tool's registered endpoint, scans the response for secrets/prompt-injection, records a `GatewayToolResponse` forensic row (status code, response hash, sanitized summary, matched detector indicators — raw body only if retention is explicitly enabled, see `docs/operations.md`), and returns the result to the agent.
 6. If DENY: the call never reaches the tool; the agent gets a reason.
 7. If APPROVAL_REQUIRED: an `ApprovalRequest` is created and queued for a human; the agent gets a reference id.
 8. Every step writes an audit event.

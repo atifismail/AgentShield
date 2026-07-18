@@ -34,6 +34,21 @@
                 </div>
             </div>
         </div>
+        <div class="col-lg-6" th:if="${toolResponse != null}">
+            <div class="card">
+                <div class="card-header">Tool response forensics</div>
+                <div class="card-body">
+                    <p>Status code: <span th:text="${toolResponse.statusCode != null ? toolResponse.statusCode : '-'}">200</span></p>
+                    <p>Blocked: <span th:text="${toolResponse.blocked}">true</span></p>
+                    <p th:if="${toolResponse.blockReason}">Block reason: <span th:text="${toolResponse.blockReason}">reason</span></p>
+                    <p>Response summary (sanitized): <code th:text="${toolResponse.responseSummary}">summary</code></p>
+                    <p th:if="${toolResponse.detectorMatchesJson}">Detector matches: <code th:text="${toolResponse.detectorMatchesJson}">[]</code></p>
+                    <p>Response body SHA-256: <code th:text="${toolResponse.responseBodyHash}">hash</code></p>
+                    <p class="text-muted small" th:unless="${toolResponse.rawResponseEncrypted}">Raw response body was not retained (disabled by default).</p>
+                    <p class="text-muted small" th:if="${toolResponse.rawResponseEncrypted}">Raw response body is retained, encrypted at rest — not shown here.</p>
+                </div>
+            </div>
+        </div>
     </div>
 </main>
 <div th:replace="~{layout/fragments :: scripts}"></div>

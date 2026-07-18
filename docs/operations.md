@@ -64,6 +64,26 @@ application — investigate immediately, this should never happen in normal oper
 check is available as a "Verify Integrity" button on the Audit page in the admin UI. Rows written
 before this feature shipped have no hash and are skipped rather than reported as broken.
 
+## Tool response forensics
+
+Every gateway call that reaches a tool records a `gateway_tool_responses` row: HTTP status code,
+a SHA-256 hash of the raw response body, a bounded `response_summary`, and (if the response was
+blocked) the block reason and the detector indicator names that matched — never the matched text
+itself. This lets an investigator confirm what happened without the database holding a permanent
+copy of whatever the tool returned, including any secrets or injected instructions in it.
+
+The raw response body itself is **not** stored by default. To opt in for a specific deployment
+(e.g. a regulated environment that needs full forensic replay), set:
+
+- `agentshield.audit.retain-raw-tool-responses=true`
+- `agentshield.audit.raw-response-encryption-key=<base64-encoded 32-byte AES-256 key>`
+
+The application refuses to start if retention is enabled without a valid key — there is no
+plaintext-fallback path. Generate a key with `openssl rand -base64 32` and manage it via your
+platform's secret manager, the same as `AGENTSHIELD_ADMIN_PASSWORD`. When enabled, each raw body
+is encrypted with AES-256-GCM using a fresh random IV per response before being written to
+`raw_response_encrypted`.
+
 ## Rate limiting and request size
 
 `POST /api/gateway/invoke` is rate-limited per bearer token (falling back to remote address),

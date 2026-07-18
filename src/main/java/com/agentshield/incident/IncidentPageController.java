@@ -3,6 +3,7 @@ package com.agentshield.incident;
 import com.agentshield.audit.AuditEventRepository;
 import com.agentshield.common.ResourceNotFoundException;
 import com.agentshield.gateway.GatewayRequestRepository;
+import com.agentshield.gateway.GatewayToolResponseRepository;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Controller;
@@ -16,12 +17,14 @@ public class IncidentPageController {
     private final IncidentRepository incidentRepository;
     private final AuditEventRepository auditEventRepository;
     private final GatewayRequestRepository gatewayRequestRepository;
+    private final GatewayToolResponseRepository toolResponseRepository;
 
     public IncidentPageController(IncidentRepository incidentRepository, AuditEventRepository auditEventRepository,
-            GatewayRequestRepository gatewayRequestRepository) {
+            GatewayRequestRepository gatewayRequestRepository, GatewayToolResponseRepository toolResponseRepository) {
         this.incidentRepository = incidentRepository;
         this.auditEventRepository = auditEventRepository;
         this.gatewayRequestRepository = gatewayRequestRepository;
+        this.toolResponseRepository = toolResponseRepository;
     }
 
     @GetMapping("/incidents")
@@ -43,6 +46,8 @@ public class IncidentPageController {
         }
         if (incident.getRelatedGatewayRequestId() != null) {
             gatewayRequestRepository.findById(incident.getRelatedGatewayRequestId()).ifPresent(r -> model.addAttribute("gatewayRequest", r));
+            toolResponseRepository.findByGatewayRequestId(incident.getRelatedGatewayRequestId())
+                    .ifPresent(tr -> model.addAttribute("toolResponse", tr));
         }
         return "incidents/detail";
     }
