@@ -1,0 +1,11 @@
+# Force LF regardless of the cloning platform's core.autocrlf setting. gradlew in particular
+# MUST stay LF: it runs inside a Linux Docker build stage, and a CRLF shebang line breaks there
+# even though the exact same file works fine (misleadingly) on Windows/WSL directly.
+* text=auto eol=lf
+
+*.bat text eol=crlf
+gradlew text eol=lf
+*.sh text eol=lf
+
+*.jar binary
+gradle/wrapper/gradle-wrapper.jar binary
