@@ -7,7 +7,5 @@ public interface AgentRepository extends JpaRepository<Agent, Long> {
 
     Optional<Agent> findByName(String name);
 
-    Optional<Agent> findByApiKeyHash(String apiKeyHash);
-
     long countByStatus(AgentStatus status);
 }

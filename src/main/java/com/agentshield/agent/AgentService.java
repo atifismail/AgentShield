@@ -7,9 +7,7 @@ import com.agentshield.common.ActorType;
 import com.agentshield.common.AuditSeverity;
 import com.agentshield.common.ConflictException;
 import com.agentshield.common.ResourceNotFoundException;
-import com.agentshield.common.TokenHasher;
 import java.util.List;
-import java.util.UUID;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -78,18 +76,6 @@ public class AgentService {
                 agent.getId(), null, AuditSeverity.WARNING,
                 "agent '" + agent.getName() + "' " + (enabled ? "enabled" : "disabled"), null);
         return agent;
-    }
-
-    /** Generates a new plaintext token, persists only its hash, and returns the plaintext once. */
-    @Transactional
-    public String rotateToken(Long id) {
-        Agent agent = get(id);
-        String token = UUID.randomUUID().toString().replace("-", "") + TokenHasher.generateToken();
-        agent.setApiKeyHash(TokenHasher.sha256Hex(token));
-        agent.touch();
-        auditService.record(null, "agent.token_rotated", ActorType.USER, agent.getOwner(), agent.getId(), null,
-                AuditSeverity.WARNING, "API token rotated for agent '" + agent.getName() + "'", null);
-        return token;
     }
 
     private String joinGroups(List<String> groups) {

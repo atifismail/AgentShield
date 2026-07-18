@@ -45,6 +45,30 @@ public final class AgentDtos {
     }
 
     /** Returned exactly once, at creation or rotation time — the hash is all that is ever stored. */
-    public record AgentTokenResponse(Long agentId, String token) {
+    public record AgentTokenResponse(Long agentId, Long credentialId, String token) {
+    }
+
+    public record CreateCredentialRequest(Long validForMinutes) {
+    }
+
+    /** Never includes the token — only enough to recognize it (prefix) and its lifecycle state. */
+    public record CredentialResponse(
+            Long id,
+            Long agentId,
+            String tokenPrefix,
+            CredentialStatus status,
+            Instant expiresAt,
+            Instant lastUsedAt,
+            String createdBy,
+            Instant createdAt,
+            String revokedBy,
+            Instant revokedAt
+    ) {
+        public static CredentialResponse from(AgentCredential credential) {
+            return new CredentialResponse(credential.getId(), credential.getAgent().getId(),
+                    credential.getTokenPrefix(), credential.getStatus(), credential.getExpiresAt(),
+                    credential.getLastUsedAt(), credential.getCreatedBy(), credential.getCreatedAt(),
+                    credential.getRevokedBy(), credential.getRevokedAt());
+        }
     }
 }

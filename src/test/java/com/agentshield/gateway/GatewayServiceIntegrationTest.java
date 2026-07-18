@@ -3,8 +3,11 @@ package com.agentshield.gateway;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.agentshield.agent.Agent;
+import com.agentshield.agent.AgentCredential;
+import com.agentshield.agent.AgentCredentialRepository;
 import com.agentshield.agent.AgentRepository;
 import com.agentshield.agent.AgentStatus;
+import com.agentshield.agent.CredentialStatus;
 import com.agentshield.approval.ApprovalRequest;
 import com.agentshield.approval.ApprovalRequestRepository;
 import com.agentshield.approval.ApprovalService;
@@ -43,6 +46,8 @@ class GatewayServiceIntegrationTest extends AbstractIntegrationTest {
     @Autowired
     private AgentRepository agentRepository;
     @Autowired
+    private AgentCredentialRepository agentCredentialRepository;
+    @Autowired
     private ToolRepository toolRepository;
     @Autowired
     private GatewayRequestRepository gatewayRequestRepository;
@@ -68,9 +73,17 @@ class GatewayServiceIntegrationTest extends AbstractIntegrationTest {
         Agent agent = new Agent();
         agent.setName("it-agent-" + System.nanoTime());
         agent.setStatus(status);
-        agent.setApiKeyHash(TokenHasher.sha256Hex(plaintextToken));
         agent.setAllowedToolGroups(String.join(",", groups));
-        return agentRepository.save(agent);
+        agent = agentRepository.save(agent);
+
+        AgentCredential credential = new AgentCredential();
+        credential.setAgent(agent);
+        credential.setTokenHash(TokenHasher.sha256Hex(plaintextToken));
+        credential.setTokenPrefix(plaintextToken.substring(0, 8));
+        credential.setStatus(CredentialStatus.ACTIVE);
+        agentCredentialRepository.save(credential);
+
+        return agent;
     }
 
     private Tool createTool(ToolApprovalStatus status, String group, String endpointPath) {
@@ -201,6 +214,46 @@ class GatewayServiceIntegrationTest extends AbstractIntegrationTest {
         var response = invoke(tool, ActionCategory.READ, "DEV");
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
+    }
+
+    @Test
+    void revokedCredentialCannotInvokeGateway() {
+        createAgent(AgentStatus.ENABLED, "database");
+        Tool tool = createTool(ToolApprovalStatus.APPROVED, "database", "/demo/mock-tool/echo");
+        AgentCredential credential = agentCredentialRepository
+                .findByTokenHash(com.agentshield.common.TokenHasher.sha256Hex(plaintextToken)).orElseThrow();
+        credential.setStatus(CredentialStatus.REVOKED);
+        agentCredentialRepository.saveAndFlush(credential);
+
+        var response = invoke(tool, ActionCategory.READ, "DEV");
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
+    }
+
+    @Test
+    void expiredCredentialCannotInvokeGateway() {
+        createAgent(AgentStatus.ENABLED, "database");
+        Tool tool = createTool(ToolApprovalStatus.APPROVED, "database", "/demo/mock-tool/echo");
+        AgentCredential credential = agentCredentialRepository
+                .findByTokenHash(com.agentshield.common.TokenHasher.sha256Hex(plaintextToken)).orElseThrow();
+        credential.setExpiresAt(java.time.Instant.now().minusSeconds(60));
+        agentCredentialRepository.saveAndFlush(credential);
+
+        var response = invoke(tool, ActionCategory.READ, "DEV");
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
+    }
+
+    @Test
+    void successfulAuthenticationUpdatesLastUsedAt() {
+        createAgent(AgentStatus.ENABLED, "database");
+        Tool tool = createTool(ToolApprovalStatus.APPROVED, "database", "/demo/mock-tool/echo");
+
+        invoke(tool, ActionCategory.READ, "DEV");
+
+        AgentCredential credential = agentCredentialRepository
+                .findByTokenHash(com.agentshield.common.TokenHasher.sha256Hex(plaintextToken)).orElseThrow();
+        assertThat(credential.getLastUsedAt()).isNotNull();
     }
 
     @Test

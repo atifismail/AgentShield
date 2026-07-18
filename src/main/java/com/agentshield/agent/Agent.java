@@ -40,9 +40,6 @@ public class Agent {
 
     private String environment;
 
-    @Column(name = "api_key_hash")
-    private String apiKeyHash;
-
     /** Comma-separated tool group names this agent may call. Stored as text for portability. */
     @Column(name = "allowed_tool_groups", length = 2000)
     private String allowedToolGroups;

@@ -17,8 +17,8 @@ in a plain production deployment.
 
 ## Demo agents and tokens
 
-Seed data creates three agents. Their `api_key_hash` values are SHA-256 digests of these plaintext
-demo tokens (see `db/migration/*/V2__seed_demo_data.sql`):
+Seed data creates three agents, each with one `agent_credentials` row whose `token_hash` is a
+SHA-256 digest of these plaintext demo tokens (see `com.agentshield.demo.DemoDataSeeder`):
 
 | Agent | Status | Bearer token |
 |---|---|---|

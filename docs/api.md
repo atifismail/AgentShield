@@ -61,7 +61,15 @@ the original request.
 | PUT | `/api/agents/{id}` | ADMIN | Update description/owner/environment/allowed groups |
 | POST | `/api/agents/{id}/enable` | ADMIN | Re-enable |
 | POST | `/api/agents/{id}/disable` | ADMIN | Disable (fails closed via policy rule 1) |
-| POST | `/api/agents/{id}/rotate-token` | ADMIN | Returns the new plaintext token **once** — it is never retrievable again |
+| POST | `/api/agents/{id}/rotate-token` | ADMIN | Revokes all active credentials and issues a new one. Returns the plaintext token **once** — it is never retrievable again |
+| GET | `/api/agents/{id}/credentials` | ADMIN | List credentials (prefix + status only, never the token) |
+| POST | `/api/agents/{id}/credentials` | ADMIN | Issue a new credential, body `{"validForMinutes": <optional>}`. Returns the plaintext token **once** |
+| POST | `/api/agents/{id}/credentials/{credentialId}/revoke` | ADMIN | Revoke a single credential immediately |
+
+Agent authentication (`/api/gateway/invoke`) accepts any `ACTIVE`, unexpired credential's token; a
+revoked or expired credential authenticates nothing regardless of how recently it worked. An
+agent can have multiple credentials at once — useful for rotating without downtime (issue the new
+one, update the caller, then revoke the old one).
 
 ## Tools — `/api/tools`
 

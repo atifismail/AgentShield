@@ -1,8 +1,11 @@
 package com.agentshield.demo;
 
 import com.agentshield.agent.Agent;
+import com.agentshield.agent.AgentCredential;
+import com.agentshield.agent.AgentCredentialRepository;
 import com.agentshield.agent.AgentRepository;
 import com.agentshield.agent.AgentStatus;
+import com.agentshield.agent.CredentialStatus;
 import com.agentshield.tool.Tool;
 import com.agentshield.tool.ToolApprovalStatus;
 import com.agentshield.tool.ToolRepository;
@@ -15,12 +18,12 @@ import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * Seeds demo agents and tools idempotently, only when the "demo" Spring profile is active
- * (improvement_plan.md #5). The default-policy baseline row is NOT demo-only — it stays a
- * regular Flyway migration (db/migration/*&#47;V2__seed_demo_data.sql) since every deployment
- * needs it, demo or not.
+ * Seeds demo agents, tools, and agent credentials idempotently, only when the "demo" Spring
+ * profile is active (improvement_plan.md #5). The default-policy baseline row is NOT demo-only
+ * — it stays a regular Flyway migration (db/migration/*&#47;V2__seed_demo_data.sql) since every
+ * deployment needs it, demo or not.
  *
- * api_key_hash values are SHA-256 digests of documented plaintext demo bearer tokens
+ * Credential hashes are SHA-256 digests of documented plaintext demo bearer tokens
  * (see docs/demo-lab.md):
  *   coding-agent-01       -&gt; demo-token-coding-agent-01
  *   support-assistant-01  -&gt; demo-token-support-assistant-01
@@ -31,10 +34,13 @@ import org.springframework.transaction.annotation.Transactional;
 public class DemoDataSeeder implements ApplicationRunner {
 
     private final AgentRepository agentRepository;
+    private final AgentCredentialRepository credentialRepository;
     private final ToolRepository toolRepository;
 
-    public DemoDataSeeder(AgentRepository agentRepository, ToolRepository toolRepository) {
+    public DemoDataSeeder(AgentRepository agentRepository, AgentCredentialRepository credentialRepository,
+            ToolRepository toolRepository) {
         this.agentRepository = agentRepository;
+        this.credentialRepository = credentialRepository;
         this.toolRepository = toolRepository;
     }
 
@@ -67,19 +73,28 @@ public class DemoDataSeeder implements ApplicationRunner {
     }
 
     private void seedAgent(String name, String description, String owner, AgentStatus status, String environment,
-            String apiKeyHash, String allowedToolGroups) {
-        if (agentRepository.findByName(name).isPresent()) {
+            String tokenHash, String allowedToolGroups) {
+        Agent agent = agentRepository.findByName(name).orElse(null);
+        if (agent == null) {
+            agent = new Agent();
+            agent.setName(name);
+            agent.setDescription(description);
+            agent.setOwner(owner);
+            agent.setStatus(status);
+            agent.setEnvironment(environment);
+            agent.setAllowedToolGroups(allowedToolGroups);
+            agent = agentRepository.save(agent);
+        }
+        if (credentialRepository.findByTokenHash(tokenHash).isPresent()) {
             return;
         }
-        Agent agent = new Agent();
-        agent.setName(name);
-        agent.setDescription(description);
-        agent.setOwner(owner);
-        agent.setStatus(status);
-        agent.setEnvironment(environment);
-        agent.setApiKeyHash(apiKeyHash);
-        agent.setAllowedToolGroups(allowedToolGroups);
-        agentRepository.save(agent);
+        AgentCredential credential = new AgentCredential();
+        credential.setAgent(agent);
+        credential.setTokenHash(tokenHash);
+        credential.setTokenPrefix("demo-tok");
+        credential.setStatus(CredentialStatus.ACTIVE);
+        credential.setCreatedBy("system");
+        credentialRepository.save(credential);
     }
 
     private void seedTool(String name, ToolType type, String toolGroup, String endpointUrl, String owner,

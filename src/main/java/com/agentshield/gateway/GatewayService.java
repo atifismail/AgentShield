@@ -1,7 +1,8 @@
 package com.agentshield.gateway;
 
 import com.agentshield.agent.Agent;
-import com.agentshield.agent.AgentRepository;
+import com.agentshield.agent.AgentCredential;
+import com.agentshield.agent.AgentCredentialRepository;
 import com.agentshield.approval.ApprovalRequest;
 import com.agentshield.approval.ApprovalRequestRepository;
 import com.agentshield.audit.AuditService;
@@ -52,7 +53,7 @@ public class GatewayService {
 
     private static final int MAX_SUMMARY_CHARS = 4000;
 
-    private final AgentRepository agentRepository;
+    private final AgentCredentialRepository agentCredentialRepository;
     private final ToolRepository toolRepository;
     private final GatewayRequestRepository gatewayRequestRepository;
     private final PolicyDecisionRepository policyDecisionRepository;
@@ -68,14 +69,14 @@ public class GatewayService {
     private final int maxPayloadBytes;
     private final int defaultApprovalExpirationMinutes;
 
-    public GatewayService(AgentRepository agentRepository, ToolRepository toolRepository,
+    public GatewayService(AgentCredentialRepository agentCredentialRepository, ToolRepository toolRepository,
             GatewayRequestRepository gatewayRequestRepository, PolicyDecisionRepository policyDecisionRepository,
             ApprovalRequestRepository approvalRequestRepository, PolicyEngine policyEngine, RiskScorer riskScorer,
             PromptInjectionDetector injectionDetector, SecretDetector secretDetector, ToolForwarder toolForwarder,
             AuditService auditService, IncidentService incidentService, ObjectMapper objectMapper,
             @Value("${agentshield.gateway.max-payload-bytes:262144}") int maxPayloadBytes,
             @Value("${agentshield.approval.default-expiration-minutes:60}") int defaultApprovalExpirationMinutes) {
-        this.agentRepository = agentRepository;
+        this.agentCredentialRepository = agentCredentialRepository;
         this.toolRepository = toolRepository;
         this.gatewayRequestRepository = gatewayRequestRepository;
         this.policyDecisionRepository = policyDecisionRepository;
@@ -92,14 +93,25 @@ public class GatewayService {
         this.defaultApprovalExpirationMinutes = defaultApprovalExpirationMinutes;
     }
 
+    /**
+     * Looks up the credential by hash and requires it to be ACTIVE and unexpired — a revoked or
+     * expired token authenticates nothing, regardless of how recently it worked
+     * (improvement_plan.md #3). Updates last-used-at on success.
+     */
+    @Transactional
     public Agent authenticate(String bearerToken) {
         if (bearerToken == null || bearerToken.isBlank()) {
             throw new AuthenticationFailedException("missing agent bearer token");
         }
         String token = bearerToken.startsWith("Bearer ") ? bearerToken.substring(7) : bearerToken;
         String hash = TokenHasher.sha256Hex(token);
-        return agentRepository.findByApiKeyHash(hash)
+        AgentCredential credential = agentCredentialRepository.findByTokenHash(hash)
                 .orElseThrow(() -> new AuthenticationFailedException("invalid agent token"));
+        if (!credential.isUsable(Instant.now())) {
+            throw new AuthenticationFailedException("agent token is " + credential.getStatus().name().toLowerCase());
+        }
+        credential.setLastUsedAt(Instant.now());
+        return credential.getAgent();
     }
 
     @Transactional
