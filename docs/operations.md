@@ -89,8 +89,11 @@ docker compose up
 
 ## Production checklist
 
-- Change `AGENTSHIELD_ADMIN_PASSWORD` and rotate it out of plain environment variables (use your platform's secret manager).
+- Set `SPRING_PROFILES_ACTIVE=prod` (both the Helm chart and `k8s/agentshield.yaml` already do this) — see `docs/deployment.md` for exactly what it changes. It will refuse to start rather than come up insecure, so treat a crash-on-boot here as the check working, not a bug.
+- Change `AGENTSHIELD_ADMIN_PASSWORD` to a real value and rotate it out of plain environment variables (use your platform's secret manager) — the `prod` profile won't start with the default `changeit`.
+- Add every real tool's hostname to `agentshield.gateway.outbound.allowed-hosts` — the `prod` profile denies all outbound tool calls by default otherwise.
 - Point `AGENTSHIELD_DB_URL` at a managed, backed-up PostgreSQL instance.
-- Put a TLS-terminating proxy or ingress in front of the service — AgentShield itself serves plain HTTP.
+- Put a TLS-terminating proxy or ingress in front of the service — AgentShield itself serves plain HTTP, and the `prod` profile's `Secure` session cookie requires TLS to work at all.
 - Review the default policy version and adjust rules for your environment before enabling `ENFORCE` mode broadly; use dry-run first.
 - Scrape `/actuator/prometheus` from your existing monitoring stack.
+- Periodically check `GET /api/audit/verify-integrity` (or the "Verify Integrity" button on the Audit page).

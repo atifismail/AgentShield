@@ -24,6 +24,10 @@ spec:
           ports:
             - containerPort: 8080
           env:
+            {{- range $key, $value := .Values.env }}
+            - name: {{ $key }}
+              value: {{ $value | quote }}
+            {{- end }}
             - name: AGENTSHIELD_DB_URL
               value: {{ .Values.database.url | quote }}
             - name: AGENTSHIELD_DB_USER

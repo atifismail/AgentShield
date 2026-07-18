@@ -1,0 +1,31 @@
+# Activated via SPRING_PROFILES_ACTIVE=prod. Secure-by-default overrides for a real deployment
+# (improvement_plan.md #10). Do not combine with the "demo" profile — AdminUserInitializer
+# refuses to start if both are active.
+spring:
+  thymeleaf:
+    cache: true
+
+server:
+  servlet:
+    session:
+      cookie:
+        secure: true
+        http-only: true
+
+management:
+  endpoints:
+    web:
+      # Narrower than the default profile's health,info,prometheus,metrics — info/metrics can
+      # leak build/environment details an operator wouldn't want publicly reachable. prometheus
+      # stays in because docs/operations.md documents scraping it as the supported monitoring
+      # path; lock it down at the network layer (internal-only scrape target) rather than here.
+      exposure:
+        include: health,prometheus
+
+agentshield:
+  gateway:
+    outbound:
+      # Deny-by-default in production: only registered tools whose host is on the explicit
+      # allowlist are reachable, full stop — no "any public host that doesn't resolve to a
+      # private range" fallback like the default profile allows.
+      deny-all-unless-allowed: true
