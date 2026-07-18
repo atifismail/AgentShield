@@ -69,6 +69,18 @@ public class Tool {
     @Column(name = "updated_at", nullable = false)
     private Instant updatedAt = Instant.now();
 
+    /** Set only for tools discovered from an MCP server (com.agentshield.mcp) — null for plain HTTP tools. */
+    @Column(name = "mcp_server_id")
+    private Long mcpServerId;
+
+    /** The tool's name as known to its MCP server — may differ from {@link #name}, which is namespaced. */
+    @Column(name = "mcp_tool_name")
+    private String mcpToolName;
+
+    public boolean isMcpBacked() {
+        return mcpServerId != null;
+    }
+
     public boolean isApproved() {
         return approvalStatus == ToolApprovalStatus.APPROVED;
     }

@@ -201,7 +201,7 @@ public class GatewayService {
     public InvokeResponse executeAndScan(GatewayRequest gatewayRequest, Tool tool, ActionCategory actionCategory,
             JsonNode input, RiskAssessment preCallRisk) {
         String correlationId = gatewayRequest.getCorrelationId();
-        ToolForwarder.ToolCallResult callResult = toolForwarder.call(tool.getEndpointUrl(), input);
+        ToolForwarder.ToolCallResult callResult = toolForwarder.call(tool, input);
 
         if (!callResult.success()) {
             gatewayRequest.setStatus(GatewayRequestStatus.FAILED);

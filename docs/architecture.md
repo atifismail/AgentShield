@@ -28,6 +28,8 @@ MCP Servers / APIs / Databases / Git / Filesystem / Cloud Tools
 
 **Tool registry** (`com.agentshield.tool`) — tracks registered tools (Git, database, filesystem, SaaS, shell, MCP), their declared schema/description, and an approval state. Every time a tool's schema or description is fingerprinted, the hash is compared against the last-approved hash; a mismatch marks the tool as drifted until a human re-approves it.
 
+**MCP integration** (`com.agentshield.mcp`) — registers MCP servers and discovers their tools via JSON-RPC (`tools/list`). Each discovered tool becomes a regular row in the tool registry above (linked back to its MCP server), so it goes through the exact same approval/drift/gateway pipeline as a plain HTTP tool. Only the HTTP transport is implemented; SSE and STDIO are modeled in the schema for a future release.
+
 **Policy engine** (`com.agentshield.policy`) — evaluates a normalized request against a set of rules and returns ALLOW, DENY, or APPROVAL_REQUIRED with a reason. Rules are versioned; a dry-run mode lets you test a policy change against a hypothetical request before enabling it.
 
 **Risk engine** (`com.agentshield.risk`) — assigns a deterministic risk score (and LOW/MEDIUM/HIGH/CRITICAL level) to a request based on the action category, target environment, tool trust state, and any detector hits. Includes the prompt-injection and secret-pattern detectors used to inspect tool responses before they flow back to the agent.

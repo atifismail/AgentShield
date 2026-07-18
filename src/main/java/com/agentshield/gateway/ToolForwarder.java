@@ -1,5 +1,7 @@
 package com.agentshield.gateway;
 
+import com.agentshield.mcp.McpToolInvoker;
+import com.agentshield.tool.Tool;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.net.http.HttpClient;
@@ -10,11 +12,16 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
 
 /**
- * Forwards an ALLOWed call to the tool's registered HTTP endpoint. Tool endpoints are normally
- * absolute URLs, but the bundled demo tools (com.agentshield.demo) are registered with
- * relative paths like "/demo/tools/git" since they live in this same application — those are
- * resolved against this server's own actual bound port (captured at startup, not the
- * configured value, so it's correct even when a random port is used, e.g. in tests).
+ * Forwards an ALLOWed call to its tool. Plain tools go straight to their registered HTTP
+ * endpoint; MCP-backed tools ({@link Tool#isMcpBacked()}) are delegated to
+ * {@link McpToolInvoker} instead, which speaks MCP's JSON-RPC {@code tools/call} to the owning
+ * MCP server. Either way the caller (GatewayService) sees the same {@link ToolCallResult} shape.
+ *
+ * Tool endpoints are normally absolute URLs, but the bundled demo tools (com.agentshield.demo)
+ * are registered with relative paths like "/demo/tools/git" since they live in this same
+ * application — those are resolved against this server's own actual bound port (captured at
+ * startup, not the configured value, so it's correct even when a random port is used, e.g. in
+ * tests).
  *
  * Re-validates the outbound endpoint immediately before every call (registration-time
  * validation alone isn't enough — DNS can change between registration and call, a classic
@@ -27,9 +34,11 @@ public class ToolForwarder {
     private final RestClient restClient;
     private final ObjectMapper objectMapper;
     private final OutboundEndpointValidator outboundEndpointValidator;
+    private final McpToolInvoker mcpToolInvoker;
     private volatile String selfBaseUrl = "http://localhost:8080";
 
-    public ToolForwarder(ObjectMapper objectMapper, OutboundEndpointValidator outboundEndpointValidator) {
+    public ToolForwarder(ObjectMapper objectMapper, OutboundEndpointValidator outboundEndpointValidator,
+            McpToolInvoker mcpToolInvoker) {
         HttpClient jdkClient = HttpClient.newBuilder()
                 .followRedirects(HttpClient.Redirect.NEVER)
                 .build();
@@ -38,6 +47,7 @@ public class ToolForwarder {
                 .build();
         this.objectMapper = objectMapper;
         this.outboundEndpointValidator = outboundEndpointValidator;
+        this.mcpToolInvoker = mcpToolInvoker;
     }
 
     @EventListener
@@ -45,7 +55,17 @@ public class ToolForwarder {
         this.selfBaseUrl = "http://localhost:" + event.getWebServer().getPort();
     }
 
-    public ToolCallResult call(String endpointUrl, JsonNode input) {
+    public ToolCallResult call(Tool tool, JsonNode input) {
+        if (tool.isMcpBacked()) {
+            var result = mcpToolInvoker.invoke(tool.getMcpServerId(), tool.getMcpToolName(), input);
+            return result.success()
+                    ? new ToolCallResult(true, false, result.rawBody(), result.parsedBody(), null)
+                    : new ToolCallResult(false, false, null, null, result.errorMessage());
+        }
+        return callHttp(tool.getEndpointUrl(), input);
+    }
+
+    private ToolCallResult callHttp(String endpointUrl, JsonNode input) {
         var validation = outboundEndpointValidator.validate(endpointUrl);
         if (!validation.allowed()) {
             return ToolCallResult.blocked("blocked by outbound endpoint policy: " + validation.reason());

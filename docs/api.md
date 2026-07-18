@@ -83,6 +83,27 @@ one, update the caller, then revoke the old one).
 | POST | `/api/tools/{id}/approve` | ADMIN / TOOL_OWNER / SECURITY_ANALYST | Approve the latest detected version |
 | POST | `/api/tools/{id}/reject` | ADMIN / TOOL_OWNER / SECURITY_ANALYST | Reject the latest detected version |
 
+## MCP servers — `/api/mcp-servers`
+
+| Method | Path | Role | Notes |
+|---|---|---|---|
+| POST | `/api/mcp-servers` | any authenticated | Register an MCP server: `{name, transportType, endpointUrl, owner, environment, toolGroup}` |
+| GET | `/api/mcp-servers` | any authenticated | List servers |
+| GET | `/api/mcp-servers/{id}` | any authenticated | Get one server |
+| POST | `/api/mcp-servers/{id}/discover` | any authenticated | Call `tools/list` and sync the result into the regular tool registry |
+
+Only `transportType: "HTTP"` is actually implemented — `SSE` and `STDIO` can be registered (the
+schema supports them) but discovery/invocation for them returns a clear "not implemented yet"
+error rather than pretending to work.
+
+Discovery creates or updates a regular `Tool` row per MCP tool found, named
+`<serverName>:<mcpToolName>` — from that point on it behaves exactly like any other tool:
+it starts `PENDING`, goes through `/api/tools/{id}/approve` like normal, and is called via
+`POST /api/gateway/invoke` with `toolId` set to that qualified name. A tool whose description or
+input schema changed since the last discovery flips to `DRIFTED` (the same mechanism as any other
+tool); a tool that's no longer returned by `tools/list` is marked `REJECTED`. Both go through the
+existing tool-registry drift/approval workflow — nothing gateway-side changes for MCP tools.
+
 ## Policies — `/api/policies`
 
 | Method | Path | Role | Notes |

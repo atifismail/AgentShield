@@ -72,6 +72,49 @@ public class ToolService {
         return tool;
     }
 
+    /**
+     * Registers a new tool, or re-fingerprints an existing one, discovered from an external
+     * source (currently: MCP server discovery — see com.agentshield.mcp.McpDiscoveryService).
+     * Reuses the exact same drift-detection semantics as a manually {@link #register}ed tool.
+     */
+    @Transactional
+    public Tool upsertDiscoveredTool(String name, ToolType type, String toolGroup, String endpointUrl, String owner,
+            String environment, String description, String schemaJson, Long mcpServerId, String mcpToolName) {
+        return toolRepository.findByName(name)
+                .map(existing -> refreshFingerprint(existing.getId(), schemaJson, description))
+                .orElseGet(() -> {
+                    Tool tool = new Tool();
+                    tool.setName(name);
+                    tool.setType(type);
+                    tool.setToolGroup(toolGroup == null || toolGroup.isBlank() ? "default" : toolGroup);
+                    tool.setEndpointUrl(endpointUrl);
+                    tool.setOwner(owner);
+                    tool.setEnvironment(environment);
+                    tool.setDescription(description);
+                    tool.setSchemaJson(schemaJson);
+                    tool.setMcpServerId(mcpServerId);
+                    tool.setMcpToolName(mcpToolName);
+                    String hash = fingerprint(schemaJson, description);
+                    tool.setCurrentHash(hash);
+                    tool.setApprovalStatus(ToolApprovalStatus.PENDING);
+                    tool.setLastSeenAt(Instant.now());
+                    Tool saved = toolRepository.save(tool);
+
+                    ToolVersion version = new ToolVersion();
+                    version.setTool(saved);
+                    version.setSchemaJson(schemaJson);
+                    version.setDescription(description);
+                    version.setHash(hash);
+                    version.setStatus(ToolVersionStatus.DETECTED);
+                    versionRepository.save(version);
+
+                    auditService.record(null, "tool.registered_from_mcp", ActorType.SYSTEM, "mcp-discovery", null,
+                            saved.getId(), AuditSeverity.INFO,
+                            "tool '" + saved.getName() + "' discovered from MCP server, pending approval", null);
+                    return saved;
+                });
+    }
+
     public Tool get(Long id) {
         return toolRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("tool " + id + " not found"));
     }
