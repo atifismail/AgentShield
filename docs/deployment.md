@@ -1,9 +1,19 @@
 # Deployment Guide
 
+## Profiles
+
+| Profile | Purpose |
+|---|---|
+| *(none)* | Base behavior: no demo mock tools, no demo seed data. This is what a production deployment should run. |
+| `demo` | Enables the bundled mock tools under `/demo/**` and seeds demo agents/tools/tokens — see `docs/demo-lab.md`. **Do not enable in production.** |
+| `test` | Used automatically by the test suite (Testcontainers wiring); not something you set yourself. |
+
+Set with `SPRING_PROFILES_ACTIVE=demo` (env var) or `--spring.profiles.active=demo` (arg). When the `demo` profile is off, `/demo/**` requires authentication like everything else and then 404s (no such controller is registered) — an anonymous request gets `401` rather than a bare `404`, which leaks less information about what's behind that path.
+
 ## Local development
 
 ```bash
-./gradlew bootRun
+SPRING_PROFILES_ACTIVE=demo ./gradlew bootRun
 ```
 
 Requires a PostgreSQL instance reachable via `AGENTSHIELD_DB_URL` (defaults to `jdbc:postgresql://localhost:5432/agentshield`). For a quick local database:
@@ -18,7 +28,7 @@ docker run --name agentshield-postgres -e POSTGRES_DB=agentshield -e POSTGRES_US
 docker compose up --build
 ```
 
-This starts PostgreSQL and the AgentShield application together. The app listens on `http://localhost:8080`. Flyway migrations run automatically on startup.
+This starts PostgreSQL and the AgentShield application together, with the `demo` profile active by default (see `docker-compose.yml`) so the attack lab works out of the box. The app listens on `http://localhost:8080`. Flyway migrations run automatically on startup. For a production-shaped run, override `SPRING_PROFILES_ACTIVE` to empty.
 
 ## Database support
 

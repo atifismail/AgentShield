@@ -2,6 +2,8 @@ package com.agentshield.security;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.core.env.Environment;
+import org.springframework.core.env.Profiles;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configurers.HeadersConfigurer;
@@ -34,17 +36,26 @@ public class SecurityConfig {
 
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http, RateLimitFilter rateLimitFilter,
-            RequestSizeLimitFilter requestSizeLimitFilter) throws Exception {
-        http.authorizeHttpRequests(auth -> auth
-                .requestMatchers("/css/**", "/js/**", "/vendor/**", "/login").permitAll()
-                .requestMatchers("/actuator/health/**", "/actuator/prometheus", "/actuator/info").permitAll()
-                .requestMatchers("/api/gateway/**").permitAll()
-                .requestMatchers("/demo/**").permitAll()
-                .requestMatchers("/api/agents/**").hasRole("ADMIN")
-                .requestMatchers("/api/tools/*/approve", "/api/tools/*/reject").hasAnyRole("ADMIN", "TOOL_OWNER", "SECURITY_ANALYST")
-                .requestMatchers("/api/policies/**").hasAnyRole("ADMIN", "SECURITY_ANALYST")
-                .requestMatchers("/api/approvals/*/approve", "/api/approvals/*/reject").hasAnyRole("ADMIN", "APPROVER")
-                .anyRequest().authenticated());
+            RequestSizeLimitFilter requestSizeLimitFilter, Environment environment) throws Exception {
+        // /demo/** (the bundled mock tools) is only ever reachable when the "demo" profile is
+        // active — the controllers themselves are @Profile("demo")-gated too (so they 404 when
+        // the profile is off), but the permitAll rule is also kept out of non-demo deployments
+        // entirely rather than relying on the controllers' absence alone (improvement_plan.md #5).
+        boolean demoProfileActive = environment.acceptsProfiles(Profiles.of("demo"));
+
+        http.authorizeHttpRequests(auth -> {
+            auth.requestMatchers("/css/**", "/js/**", "/vendor/**", "/login").permitAll();
+            auth.requestMatchers("/actuator/health/**", "/actuator/prometheus", "/actuator/info").permitAll();
+            auth.requestMatchers("/api/gateway/**").permitAll();
+            if (demoProfileActive) {
+                auth.requestMatchers("/demo/**").permitAll();
+            }
+            auth.requestMatchers("/api/agents/**").hasRole("ADMIN");
+            auth.requestMatchers("/api/tools/*/approve", "/api/tools/*/reject").hasAnyRole("ADMIN", "TOOL_OWNER", "SECURITY_ANALYST");
+            auth.requestMatchers("/api/policies/**").hasAnyRole("ADMIN", "SECURITY_ANALYST");
+            auth.requestMatchers("/api/approvals/*/approve", "/api/approvals/*/reject").hasAnyRole("ADMIN", "APPROVER");
+            auth.anyRequest().authenticated();
+        });
 
         http.formLogin(form -> form
                 .loginPage("/login")

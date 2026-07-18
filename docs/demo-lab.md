@@ -1,9 +1,10 @@
 # Demo Attack Lab
 
 AgentShield ships with four mock tools and seed data so you can see the gateway block real
-attack patterns without wiring up any real infrastructure. Start the stack (`docker compose up`
-or `./gradlew bootRun` against a local PostgreSQL) and everything below is ready to use — no
-extra setup.
+attack patterns without wiring up any real infrastructure. This requires the `demo` Spring
+profile (`docker compose up` enables it by default; for `./gradlew bootRun` set
+`SPRING_PROFILES_ACTIVE=demo` — see `docs/deployment.md`). It is intentionally **not** available
+in a plain production deployment.
 
 ## Mock tools
 

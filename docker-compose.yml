@@ -21,6 +21,7 @@ services:
       postgres:
         condition: service_healthy
     environment:
+      SPRING_PROFILES_ACTIVE: demo
       AGENTSHIELD_DB_URL: jdbc:postgresql://postgres:5432/agentshield
       AGENTSHIELD_DB_USER: agentshield
       AGENTSHIELD_DB_PASSWORD: agentshield

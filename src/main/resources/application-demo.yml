@@ -1,0 +1,3 @@
+# Activated via SPRING_PROFILES_ACTIVE=demo. Turns on the bundled mock tools under /demo/**
+# (com.agentshield.demo.*ToolController) and seeds demo agents/tools (DemoDataSeeder) — see
+# docs/demo-lab.md. Do not set this profile in a production deployment.
