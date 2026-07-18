@@ -28,13 +28,15 @@ public class RiskScorer {
             score += 50;
             reasons.add("tool schema/description drift detected (+50)");
         }
-        if (input.secretDetected()) {
-            score += 40;
-            reasons.add("secret-like value detected in response (+40)");
+        if (input.secretConfidence() != null) {
+            int add = scoreFor(input.secretConfidence());
+            score += add;
+            reasons.add("secret-like value detected in response, confidence=" + input.secretConfidence() + " (+" + add + ")");
         }
-        if (input.promptInjectionDetected()) {
-            score += 40;
-            reasons.add("prompt-injection pattern detected in response (+40)");
+        if (input.injectionConfidence() != null) {
+            int add = scoreFor(input.injectionConfidence());
+            score += add;
+            reasons.add("prompt-injection pattern detected in response, confidence=" + input.injectionConfidence() + " (+" + add + ")");
         }
         if (input.firstTimeAgentToolPair()) {
             score += 10;
@@ -59,5 +61,13 @@ public class RiskScorer {
         };
         reasons.add("base score for " + input.actionCategory() + " (" + base + ")");
         return base;
+    }
+
+    private int scoreFor(Confidence confidence) {
+        return switch (confidence) {
+            case HIGH -> 40;
+            case MEDIUM -> 25;
+            case LOW -> 10;
+        };
     }
 }

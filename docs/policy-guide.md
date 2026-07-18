@@ -46,8 +46,8 @@ Risk is scored deterministically, not with a model:
 | Target environment is PROD | +20 |
 | Tool not approved | +50 |
 | Schema drift detected | +50 |
-| Secret detected in response | +40 |
-| Prompt injection detected in response | +40 |
+| Secret detected in response, confidence HIGH / MEDIUM / LOW | +40 / +25 / +10 |
+| Prompt injection detected in response, confidence HIGH / MEDIUM / LOW | +40 / +25 / +10 |
 | First time this agent/tool pair has been seen | +10 |
 | Human approval already granted | -30 |
 
@@ -62,9 +62,42 @@ Risk is scored deterministically, not with a model:
 
 ## Detection patterns
 
-**Prompt-injection indicators** (checked against tool response text): "ignore previous instructions", "disregard system message", "reveal your secret", "send credentials", "exfiltrate", "call this tool instead", "hidden instruction", "developer message override", "system prompt", "do not tell the user".
+Every match carries a **category**, a **confidence** (LOW/MEDIUM/HIGH), and its line/offset within
+the scanned text — never the matched text itself, which is never returned, logged, or persisted.
+Category and confidence feed directly into risk scoring (above) and are shown on the incident
+detail page for anything the detector blocked.
 
-**Secret indicators**: AWS access key pattern, private key header, JWT-like token, password assignment, API key assignment, bearer token, database connection URL containing credentials.
+**Prompt-injection indicators** (checked against tool response text):
+
+| Indicator | Category | Confidence |
+|---|---|---|
+| "ignore previous instructions" | PROMPT_OVERRIDE | HIGH |
+| "disregard system message" | PROMPT_OVERRIDE | HIGH |
+| "developer message override" | PROMPT_OVERRIDE | HIGH |
+| "system prompt" | PROMPT_OVERRIDE | LOW |
+| "reveal your secret" | HIDDEN_INSTRUCTION | HIGH |
+| "send credentials" | HIDDEN_INSTRUCTION | HIGH |
+| "do not tell the user" | HIDDEN_INSTRUCTION | HIGH |
+| "exfiltrate" | HIDDEN_INSTRUCTION | MEDIUM |
+| "hidden instruction" | HIDDEN_INSTRUCTION | MEDIUM |
+| "call this tool instead" | TOOL_REDIRECTION | HIGH |
+
+**Secret indicators**:
+
+| Indicator | Category | Confidence |
+|---|---|---|
+| AWS access key pattern | CREDENTIAL | HIGH |
+| GitHub token-like value (`ghp_`/`gho_`/`ghu_`/`ghs_`/`ghr_`) | TOKEN | HIGH |
+| Private key header (PEM) | PRIVATE_KEY | HIGH |
+| Database connection URL containing credentials | DB_CONNECTION_STRING | HIGH |
+| JWT-like token | TOKEN | MEDIUM |
+| Password assignment | CREDENTIAL | MEDIUM |
+| API key assignment | CREDENTIAL | MEDIUM |
+| Bearer token | TOKEN | MEDIUM |
+
+A small allowlist filters common placeholder values (`changeme`, `redacted`, `example`, `<your-api-key>`,
+and similar) out of the secret detector's matches — checked per-match, not per-response, so a real
+secret elsewhere in the same response is still caught even if a placeholder also appears in it.
 
 Both detectors are deterministic (pattern/regex based) so the product runs fully offline with no dependency on a paid classification API. A future phase may add local LLM-assisted classification as a supplement, never a replacement.
 

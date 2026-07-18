@@ -33,6 +33,7 @@ import com.agentshield.tool.ToolRepository;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.time.Instant;
@@ -232,8 +233,8 @@ public class GatewayService {
 
         if (blocked) {
             RiskInput rescored = RiskInput.builder(actionCategory)
-                    .secretDetected(secretResult.matched())
-                    .promptInjectionDetected(injectionResult.matched())
+                    .secretConfidence(secretResult.highestConfidence())
+                    .injectionConfidence(injectionResult.highestConfidence())
                     .build();
             RiskAssessment finalRisk = riskScorer.score(rescored);
 
@@ -297,8 +298,8 @@ public class GatewayService {
                 : truncate(rawBody));
 
         ArrayNode matches = objectMapper.createArrayNode();
-        secretResult.matchedIndicators().forEach(matches::add);
-        injectionResult.matchedIndicators().forEach(matches::add);
+        appendMatches(matches, secretResult);
+        appendMatches(matches, injectionResult);
         if (!matches.isEmpty()) {
             response.setDetectorMatchesJson(matches.toString());
         }
@@ -308,6 +309,17 @@ public class GatewayService {
         }
 
         toolResponseRepository.save(response);
+    }
+
+    private void appendMatches(ArrayNode target, com.agentshield.risk.DetectionResult result) {
+        for (com.agentshield.risk.DetectionMatch match : result.matches()) {
+            ObjectNode entry = objectMapper.createObjectNode();
+            entry.put("indicator", match.indicator());
+            entry.put("category", match.category().name());
+            entry.put("confidence", match.confidence().name());
+            entry.put("line", match.line());
+            target.add(entry);
+        }
     }
 
     private void recordDecision(GatewayRequest gatewayRequest, PolicyDecisionType decision, String reason,

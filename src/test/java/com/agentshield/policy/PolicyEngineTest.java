@@ -6,7 +6,10 @@ import com.agentshield.agent.Agent;
 import com.agentshield.agent.AgentStatus;
 import com.agentshield.common.ActionCategory;
 import com.agentshield.common.PolicyDecisionType;
+import com.agentshield.risk.Confidence;
+import com.agentshield.risk.DetectionMatch;
 import com.agentshield.risk.DetectionResult;
+import com.agentshield.risk.DetectorCategory;
 import com.agentshield.tool.Tool;
 import com.agentshield.tool.ToolApprovalStatus;
 import com.agentshield.tool.ToolType;
@@ -46,6 +49,10 @@ class PolicyEngineTest {
 
     private PolicyEvaluationContext ctx(Agent agent, Tool tool, ActionCategory category, String env, int payload) {
         return new PolicyEvaluationContext(agent, tool, category, env, payload, 1000);
+    }
+
+    private DetectionResult detected(String indicator, DetectorCategory category) {
+        return new DetectionResult(true, List.of(new DetectionMatch(indicator, category, Confidence.HIGH, 0, 1)));
     }
 
     @Test
@@ -111,7 +118,7 @@ class PolicyEngineTest {
     @Test
     void rule7_deniesSecretInResponseWhenExternal() {
         var outcome = engine.evaluateResponse(true,
-                new DetectionResult(true, java.util.List.of("api-key-assignment")), DetectionResult.CLEAN);
+                detected("api-key-assignment", DetectorCategory.CREDENTIAL), DetectionResult.CLEAN);
         assertThat(outcome.decision()).isEqualTo(PolicyDecisionType.DENY);
         assertThat(outcome.ruleId()).isEqualTo("deny-secret-external-transfer");
     }
@@ -119,14 +126,14 @@ class PolicyEngineTest {
     @Test
     void rule7_allowsSecretInResponseWhenNotExternal() {
         var outcome = engine.evaluateResponse(false,
-                new DetectionResult(true, java.util.List.of("api-key-assignment")), DetectionResult.CLEAN);
+                detected("api-key-assignment", DetectorCategory.CREDENTIAL), DetectionResult.CLEAN);
         assertThat(outcome.decision()).isEqualTo(PolicyDecisionType.ALLOW);
     }
 
     @Test
     void rule8_deniesPromptInjectionInResponse() {
         var outcome = engine.evaluateResponse(false, DetectionResult.CLEAN,
-                new DetectionResult(true, java.util.List.of("ignore previous instructions")));
+                detected("ignore previous instructions", DetectorCategory.PROMPT_OVERRIDE));
         assertThat(outcome.decision()).isEqualTo(PolicyDecisionType.DENY);
         assertThat(outcome.ruleId()).isEqualTo("deny-prompt-injection-response");
     }

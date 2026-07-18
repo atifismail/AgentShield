@@ -5,14 +5,16 @@ import com.agentshield.common.ActionCategory;
 /**
  * Facts the risk engine scores a request against. Booleans default to "no penalty" so callers
  * only need to set the flags that apply to their evaluation phase (pre-call vs. post-response).
+ * Detector findings carry a {@link Confidence} (null = not detected) so the risk score reflects
+ * how sure the detector was, not just whether it fired at all.
  */
 public record RiskInput(
         ActionCategory actionCategory,
         boolean prodEnvironment,
         boolean toolNotApproved,
         boolean schemaDrift,
-        boolean secretDetected,
-        boolean promptInjectionDetected,
+        Confidence secretConfidence,
+        Confidence injectionConfidence,
         boolean firstTimeAgentToolPair,
         boolean approvalGranted
 ) {
@@ -26,8 +28,8 @@ public record RiskInput(
         private boolean prodEnvironment;
         private boolean toolNotApproved;
         private boolean schemaDrift;
-        private boolean secretDetected;
-        private boolean promptInjectionDetected;
+        private Confidence secretConfidence;
+        private Confidence injectionConfidence;
         private boolean firstTimeAgentToolPair;
         private boolean approvalGranted;
 
@@ -50,13 +52,25 @@ public record RiskInput(
             return this;
         }
 
+        /** Convenience for callers that only know "detected or not" — maps true to HIGH confidence. */
         public Builder secretDetected(boolean v) {
-            this.secretDetected = v;
+            this.secretConfidence = v ? Confidence.HIGH : null;
             return this;
         }
 
+        public Builder secretConfidence(Confidence v) {
+            this.secretConfidence = v;
+            return this;
+        }
+
+        /** Convenience for callers that only know "detected or not" — maps true to HIGH confidence. */
         public Builder promptInjectionDetected(boolean v) {
-            this.promptInjectionDetected = v;
+            this.injectionConfidence = v ? Confidence.HIGH : null;
+            return this;
+        }
+
+        public Builder injectionConfidence(Confidence v) {
+            this.injectionConfidence = v;
             return this;
         }
 
@@ -72,7 +86,7 @@ public record RiskInput(
 
         public RiskInput build() {
             return new RiskInput(actionCategory, prodEnvironment, toolNotApproved, schemaDrift,
-                    secretDetected, promptInjectionDetected, firstTimeAgentToolPair, approvalGranted);
+                    secretConfidence, injectionConfidence, firstTimeAgentToolPair, approvalGranted);
         }
     }
 }
