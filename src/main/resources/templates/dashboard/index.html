@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{layout/fragments :: head(title='Dashboard')}"></head>
+<body>
+<nav th:replace="~{layout/fragments :: navbar}"></nav>
+<main class="container-fluid py-4">
+    <h1 class="h3 mb-4">Dashboard</h1>
+    <div class="row g-3">
+        <div class="col-md-4 col-lg-2">
+            <div class="card bg-body-tertiary h-100">
+                <div class="card-body">
+                    <div class="text-secondary small">Requests (24h)</div>
+                    <div class="fs-3 fw-semibold" th:text="${stats?.requestCount ?: 0}">0</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4 col-lg-2">
+            <div class="card bg-body-tertiary h-100">
+                <div class="card-body">
+                    <div class="text-secondary small">Denied</div>
+                    <div class="fs-3 fw-semibold text-danger" th:text="${stats?.denyCount ?: 0}">0</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4 col-lg-2">
+            <div class="card bg-body-tertiary h-100">
+                <div class="card-body">
+                    <div class="text-secondary small">Pending Approvals</div>
+                    <div class="fs-3 fw-semibold text-warning" th:text="${stats?.pendingApprovalCount ?: 0}">0</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4 col-lg-2">
+            <div class="card bg-body-tertiary h-100">
+                <div class="card-body">
+                    <div class="text-secondary small">High-Risk Agents</div>
+                    <div class="fs-3 fw-semibold" th:text="${stats?.highRiskAgentCount ?: 0}">0</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4 col-lg-2">
+            <div class="card bg-body-tertiary h-100">
+                <div class="card-body">
+                    <div class="text-secondary small">Tool Drift</div>
+                    <div class="fs-3 fw-semibold" th:text="${stats?.toolDriftCount ?: 0}">0</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4 col-lg-2">
+            <div class="card bg-body-tertiary h-100">
+                <div class="card-body">
+                    <div class="text-secondary small">Open Incidents</div>
+                    <div class="fs-3 fw-semibold" th:text="${stats?.openIncidentCount ?: 0}">0</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-3 mt-1">
+        <div class="col-lg-8">
+            <div class="card">
+                <div class="card-header">Request volume &amp; decisions</div>
+                <div class="card-body">
+                    <canvas id="requestVolumeChart" height="90"></canvas>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-4">
+            <div class="card">
+                <div class="card-header">Recent incidents</div>
+                <ul class="list-group list-group-flush" id="recentIncidentsList">
+                    <li class="list-group-item text-secondary" th:if="${#lists.isEmpty(recentIncidents)}">No incidents recorded.</li>
+                    <li class="list-group-item" th:each="incident : ${recentIncidents}">
+                        <a th:href="@{'/incidents/' + ${incident.id}}" th:text="${incident.title}">Incident</a>
+                        <span class="badge float-end" th:classappend="${incident.severity == 'CRITICAL'} ? 'text-bg-danger' : (${incident.severity == 'HIGH'} ? 'text-bg-warning' : 'text-bg-secondary')" th:text="${incident.severity}">LOW</span>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</main>
+<div th:replace="~{layout/fragments :: scripts}"></div>
+<script th:inline="javascript">
+    /*<![CDATA[*/
+    var dashboardSeries = /*[[${chartSeries}]]*/ {labels: [], allow: [], deny: [], approval: []};
+    /*]]>*/
+    $(function () {
+        var ctx = document.getElementById('requestVolumeChart');
+        if (ctx && window.Chart) {
+            new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: dashboardSeries.labels,
+                    datasets: [
+                        {label: 'Allow', data: dashboardSeries.allow, backgroundColor: '#198754'},
+                        {label: 'Deny', data: dashboardSeries.deny, backgroundColor: '#dc3545'},
+                        {label: 'Approval required', data: dashboardSeries.approval, backgroundColor: '#ffc107'}
+                    ]
+                },
+                options: {responsive: true, scales: {x: {stacked: true}, y: {stacked: true, beginAtZero: true}}}
+            });
+        }
+    });
+</script>
+</body>
+</html>

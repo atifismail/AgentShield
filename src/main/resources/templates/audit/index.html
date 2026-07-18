@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{layout/fragments :: head(title='Audit')}"></head>
+<body>
+<nav th:replace="~{layout/fragments :: navbar}"></nav>
+<main class="container-fluid py-4">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h1 class="h3 mb-0">Audit</h1>
+        <a class="btn btn-outline-secondary btn-sm" target="_blank"
+           th:href="@{/api/audit(agentId=${filterAgentId},toolId=${filterToolId},severity=${filterSeverity},size=500)}">
+            Export JSON
+        </a>
+    </div>
+
+    <form class="card card-body mb-3" method="get" th:action="@{/audit}">
+        <div class="row g-2 align-items-end">
+            <div class="col-auto">
+                <label class="form-label small">Agent ID</label>
+                <input type="number" class="form-control form-control-sm" name="agentId" th:value="${filterAgentId}"/>
+            </div>
+            <div class="col-auto">
+                <label class="form-label small">Tool ID</label>
+                <input type="number" class="form-control form-control-sm" name="toolId" th:value="${filterToolId}"/>
+            </div>
+            <div class="col-auto">
+                <label class="form-label small">Severity</label>
+                <select class="form-select form-select-sm" name="severity">
+                    <option value="">Any</option>
+                    <option th:each="s : ${severities}" th:value="${s}" th:text="${s}" th:selected="${s == filterSeverity}"></option>
+                </select>
+            </div>
+            <div class="col-auto">
+                <button type="submit" class="btn btn-sm btn-primary">Filter</button>
+                <a th:href="@{/audit}" class="btn btn-sm btn-outline-secondary">Clear</a>
+            </div>
+        </div>
+    </form>
+
+    <div class="card">
+        <div class="card-body">
+            <table class="table table-hover align-middle data-table">
+                <thead>
+                <tr><th>Time</th><th>Event</th><th>Severity</th><th>Actor</th><th>Message</th><th>Correlation</th></tr>
+                </thead>
+                <tbody>
+                <tr th:each="e : ${eventsPage.content}">
+                    <td th:text="${#temporals.format(e.createdAt, 'yyyy-MM-dd HH:mm:ss')}">-</td>
+                    <td th:text="${e.eventType}">gateway.allowed</td>
+                    <td><span class="badge" th:classappend="'status-badge-' + ${#strings.toLowerCase(e.severity)}" th:text="${e.severity}">INFO</span></td>
+                    <td th:text="${e.actorType} + (${e.actorId} != null ? (' (' + ${e.actorId} + ')') : '')">SYSTEM</td>
+                    <td th:text="${e.message}">message</td>
+                    <td>
+                        <a th:if="${e.correlationId}" th:href="@{'/audit/correlation/' + ${e.correlationId}}" class="text-monospace-sm"
+                           th:text="${#strings.substring(e.correlationId, 0, 8)} + '…'">abcd1234…</a>
+                    </td>
+                </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</main>
+<div th:replace="~{layout/fragments :: scripts}"></div>
+</body>
+</html>

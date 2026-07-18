@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{layout/fragments :: head(title='Agents')}"></head>
+<body>
+<nav th:replace="~{layout/fragments :: navbar}"></nav>
+<main class="container-fluid py-4">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h1 class="h3 mb-0">Agents</h1>
+        <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#createAgentModal">
+            Register agent
+        </button>
+    </div>
+
+    <div id="alertHost"></div>
+
+    <div class="card">
+        <div class="card-body">
+            <table class="table table-hover align-middle data-table" id="agentsTable">
+                <thead>
+                <tr>
+                    <th>Name</th>
+                    <th>Status</th>
+                    <th>Owner</th>
+                    <th>Environment</th>
+                    <th>Allowed tool groups</th>
+                    <th>Updated</th>
+                    <th>Actions</th>
+                </tr>
+                </thead>
+                <tbody>
+                <tr th:each="agent : ${agents}" th:attr="data-agent-id=${agent.id}">
+                    <td th:text="${agent.name}">agent-01</td>
+                    <td>
+                        <span class="badge" th:classappend="'status-badge-' + ${#strings.toLowerCase(agent.status)}"
+                              th:text="${agent.status}">ENABLED</span>
+                    </td>
+                    <td th:text="${agent.owner}">team</td>
+                    <td th:text="${agent.environment}">DEV</td>
+                    <td th:text="${#strings.setJoin(agent.allowedToolGroupSet(), ', ')}">groups</td>
+                    <td th:text="${#temporals.format(agent.updatedAt, 'yyyy-MM-dd HH:mm')}">-</td>
+                    <td>
+                        <div class="btn-group btn-group-sm">
+                            <button type="button" class="btn btn-outline-success btn-enable" th:if="${agent.status.name() == 'DISABLED'}">Enable</button>
+                            <button type="button" class="btn btn-outline-danger btn-disable" th:if="${agent.status.name() == 'ENABLED'}">Disable</button>
+                            <button type="button" class="btn btn-outline-secondary btn-rotate">Rotate token</button>
+                        </div>
+                    </td>
+                </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</main>
+
+<div class="modal fade" id="createAgentModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Register agent</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="createAgentForm">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Name</label>
+                        <input type="text" class="form-control" name="name" required/>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Description</label>
+                        <input type="text" class="form-control" name="description"/>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Owner</label>
+                        <input type="text" class="form-control" name="owner"/>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Environment</label>
+                        <input type="text" class="form-control" name="environment" placeholder="DEV"/>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Allowed tool groups (comma-separated)</label>
+                        <input type="text" class="form-control" name="allowedToolGroups" placeholder="database,filesystem"/>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="submit" class="btn btn-primary">Register</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="tokenModal" tabindex="-1" data-bs-backdrop="static">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">New agent token</h5>
+            </div>
+            <div class="modal-body">
+                <p class="text-danger fw-semibold">Copy this token now — it cannot be retrieved again.</p>
+                <code class="d-block p-2 bg-body-tertiary" id="tokenValue"></code>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-primary" data-bs-dismiss="modal">Done</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div th:replace="~{layout/fragments :: scripts}"></div>
+<script>
+    function showAlert(message, type) {
+        $('#alertHost').html('<div class="alert alert-' + type + ' alert-dismissible fade show" role="alert">' +
+            message + '<button type="button" class="btn-close" data-bs-dismiss="alert"></button></div>');
+    }
+
+    $('#createAgentForm').on('submit', function (e) {
+        e.preventDefault();
+        var groups = $(this).find('[name=allowedToolGroups]').val();
+        var payload = {
+            name: $(this).find('[name=name]').val(),
+            description: $(this).find('[name=description]').val(),
+            owner: $(this).find('[name=owner]').val(),
+            environment: $(this).find('[name=environment]').val(),
+            allowedToolGroups: groups ? groups.split(',').map(function (s) { return s.trim(); }).filter(Boolean) : []
+        };
+        $.ajax({
+            url: '/api/agents', method: 'POST', contentType: 'application/json', data: JSON.stringify(payload)
+        }).done(function () {
+            location.reload();
+        }).fail(function (xhr) {
+            showAlert('Failed to register agent: ' + (xhr.responseJSON ? xhr.responseJSON.error : xhr.statusText), 'danger');
+        });
+    });
+
+    $('#agentsTable').on('click', '.btn-enable, .btn-disable', function () {
+        var id = $(this).closest('tr').data('agent-id');
+        var action = $(this).hasClass('btn-enable') ? 'enable' : 'disable';
+        $.post('/api/agents/' + id + '/' + action).done(function () {
+            location.reload();
+        }).fail(function (xhr) {
+            showAlert('Action failed: ' + (xhr.responseJSON ? xhr.responseJSON.error : xhr.statusText), 'danger');
+        });
+    });
+
+    $('#agentsTable').on('click', '.btn-rotate', function () {
+        var id = $(this).closest('tr').data('agent-id');
+        $.post('/api/agents/' + id + '/rotate-token').done(function (data) {
+            $('#tokenValue').text(data.token);
+            new bootstrap.Modal('#tokenModal').show();
+        }).fail(function (xhr) {
+            showAlert('Rotate failed: ' + (xhr.responseJSON ? xhr.responseJSON.error : xhr.statusText), 'danger');
+        });
+    });
+</script>
+</body>
+</html>

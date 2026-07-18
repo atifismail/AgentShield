@@ -1,0 +1,79 @@
+# Plain Kubernetes manifests for users who don't want Helm.
+# Create the referenced secrets first, e.g.:
+#   kubectl create secret generic agentshield-db-credentials --from-literal=username=agentshield --from-literal=password=CHANGE_ME
+#   kubectl create secret generic agentshield-admin-credentials --from-literal=username=admin --from-literal=password=CHANGE_ME
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: agentshield
+  labels:
+    app.kubernetes.io/name: agentshield
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: agentshield
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: agentshield
+    spec:
+      containers:
+        - name: agentshield
+          image: agentshield:0.1.0
+          ports:
+            - containerPort: 8080
+          env:
+            - name: AGENTSHIELD_DB_URL
+              value: "jdbc:postgresql://agentshield-postgres:5432/agentshield"
+            - name: AGENTSHIELD_DB_USER
+              valueFrom:
+                secretKeyRef:
+                  name: agentshield-db-credentials
+                  key: username
+            - name: AGENTSHIELD_DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: agentshield-db-credentials
+                  key: password
+            - name: AGENTSHIELD_ADMIN_USER
+              valueFrom:
+                secretKeyRef:
+                  name: agentshield-admin-credentials
+                  key: username
+            - name: AGENTSHIELD_ADMIN_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: agentshield-admin-credentials
+                  key: password
+          resources:
+            requests:
+              cpu: 250m
+              memory: 512Mi
+            limits:
+              cpu: "1"
+              memory: 1Gi
+          livenessProbe:
+            httpGet:
+              path: /actuator/health/liveness
+              port: 8080
+            initialDelaySeconds: 30
+          readinessProbe:
+            httpGet:
+              path: /actuator/health/readiness
+              port: 8080
+            initialDelaySeconds: 20
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: agentshield
+  labels:
+    app.kubernetes.io/name: agentshield
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: agentshield
+  ports:
+    - port: 80
+      targetPort: 8080

@@ -1,0 +1,31 @@
+# Build output
+build/
+out/
+.gradle/
+!gradle/wrapper/gradle-wrapper.jar
+
+# IDE
+.idea/
+*.iml
+.vscode/
+.classpath
+.project
+.settings/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Environment / secrets
+.env
+*.local.yml
+
+# Planning docs kept local only, not published to the public repo
+PROJECT_PLAN.md
+AGENTS.md
+
+# Local tooling config, not part of the project
+.claude/

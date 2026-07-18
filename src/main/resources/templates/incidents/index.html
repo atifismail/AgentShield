@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{layout/fragments :: head(title='Incidents')}"></head>
+<body>
+<nav th:replace="~{layout/fragments :: navbar}"></nav>
+<main class="container-fluid py-4">
+    <h1 class="h3 mb-3">Incidents</h1>
+    <div class="card">
+        <div class="card-body">
+            <table class="table table-hover align-middle data-table">
+                <thead>
+                <tr><th>Created</th><th>Title</th><th>Severity</th><th>Status</th></tr>
+                </thead>
+                <tbody>
+                <tr th:each="i : ${incidentsPage.content}">
+                    <td th:text="${#temporals.format(i.createdAt, 'yyyy-MM-dd HH:mm')}">-</td>
+                    <td><a th:href="@{'/incidents/' + ${i.id}}" th:text="${i.title}">Incident</a></td>
+                    <td><span class="badge" th:classappend="'status-badge-' + ${#strings.toLowerCase(i.severity)}" th:text="${i.severity}">CRITICAL</span></td>
+                    <td><span class="badge" th:classappend="'status-badge-' + ${#strings.toLowerCase(i.status)}" th:text="${i.status}">OPEN</span></td>
+                </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</main>
+<div th:replace="~{layout/fragments :: scripts}"></div>
+</body>
+</html>

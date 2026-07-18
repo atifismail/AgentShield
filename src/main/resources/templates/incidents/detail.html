@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{layout/fragments :: head(title='Incident detail')}"></head>
+<body>
+<nav th:replace="~{layout/fragments :: navbar}"></nav>
+<main class="container-fluid py-4">
+    <p><a th:href="@{/incidents}">&larr; Back to incidents</a></p>
+    <h1 class="h3 mb-1" th:text="${incident.title}">Incident</h1>
+    <p>
+        <span class="badge" th:classappend="'status-badge-' + ${#strings.toLowerCase(incident.severity)}" th:text="${incident.severity}">CRITICAL</span>
+        <span class="badge" th:classappend="'status-badge-' + ${#strings.toLowerCase(incident.status)}" th:text="${incident.status}">OPEN</span>
+    </p>
+    <p th:text="${incident.summary}">summary</p>
+
+    <div class="row g-3 mt-2">
+        <div class="col-lg-6" th:if="${auditEvent != null}">
+            <div class="card">
+                <div class="card-header">Triggering audit event</div>
+                <div class="card-body">
+                    <p><strong th:text="${auditEvent.eventType}">gateway.response_blocked</strong></p>
+                    <p th:text="${auditEvent.message}">message</p>
+                    <a th:if="${auditEvent.correlationId}" th:href="@{'/audit/correlation/' + ${auditEvent.correlationId}}">View full timeline</a>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-6" th:if="${gatewayRequest != null}">
+            <div class="card">
+                <div class="card-header">Related gateway request</div>
+                <div class="card-body">
+                    <p><strong th:text="${gatewayRequest.actionName}">deleteRecords</strong> on
+                        <span th:text="${gatewayRequest.tool != null ? gatewayRequest.tool.name : '-'}">tool</span></p>
+                    <p>Agent: <span th:text="${gatewayRequest.agent.name}">agent</span></p>
+                    <p>Status: <span th:text="${gatewayRequest.status}">DENIED</span></p>
+                </div>
+            </div>
+        </div>
+    </div>
+</main>
+<div th:replace="~{layout/fragments :: scripts}"></div>
+</body>
+</html>

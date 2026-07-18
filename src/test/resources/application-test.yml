@@ -1,0 +1,14 @@
+# Datasource connection details are supplied dynamically by Testcontainers via @ServiceConnection
+# (see com.agentshield.support.AbstractIntegrationTest) — nothing to configure here.
+spring:
+  jpa:
+    hibernate:
+      ddl-auto: validate
+  flyway:
+    enabled: true
+    locations: classpath:db/migration/mariadb
+
+agentshield:
+  security:
+    default-admin-username: admin
+    default-admin-password: test-only

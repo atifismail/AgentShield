@@ -1,0 +1,55 @@
+spring:
+  application:
+    name: agent-shield
+  datasource:
+    url: ${AGENTSHIELD_DB_URL:jdbc:postgresql://localhost:5432/agentshield}
+    username: ${AGENTSHIELD_DB_USER:agentshield}
+    password: ${AGENTSHIELD_DB_PASSWORD:agentshield}
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
+    properties:
+      hibernate:
+        format_sql: false
+  flyway:
+    enabled: true
+    locations: classpath:db/migration/${AGENTSHIELD_DB_VENDOR:postgresql}
+  thymeleaf:
+    cache: false
+
+server:
+  port: ${AGENTSHIELD_PORT:8080}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus,metrics
+  endpoint:
+    health:
+      show-details: when-authorized
+      probes:
+        enabled: true
+  health:
+    livenessstate:
+      enabled: true
+    readinessstate:
+      enabled: true
+
+agentshield:
+  security:
+    default-admin-username: ${AGENTSHIELD_ADMIN_USER:admin}
+    default-admin-password: ${AGENTSHIELD_ADMIN_PASSWORD:changeit}
+  gateway:
+    max-payload-bytes: 262144
+    max-request-bytes: 1048576
+    rate-limit:
+      max-requests-per-minute: 60
+  approval:
+    default-expiration-minutes: 60
+
+logging:
+  level:
+    root: INFO
+    com.agentshield: INFO

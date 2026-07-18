@@ -1,0 +1,36 @@
+body {
+    background-color: #f5f6f8;
+}
+
+.navbar-brand {
+    letter-spacing: 0.02em;
+}
+
+.card {
+    border: 1px solid rgba(0, 0, 0, 0.08);
+}
+
+.risk-badge-low { background-color: #198754; }
+.risk-badge-medium { background-color: #fd7e14; }
+.risk-badge-high { background-color: #dc3545; }
+.risk-badge-critical { background-color: #6f0000; }
+
+.status-badge-approved, .status-badge-allow, .status-badge-completed, .status-badge-enabled { background-color: #198754; }
+.status-badge-pending, .status-badge-approval_required, .status-badge-pending_approval { background-color: #fd7e14; }
+.status-badge-drifted, .status-badge-expired { background-color: #ffc107; color: #212529; }
+.status-badge-rejected, .status-badge-deny, .status-badge-denied, .status-badge-failed, .status-badge-disabled { background-color: #dc3545; }
+.status-badge-info { background-color: #6c757d; }
+.status-badge-warning { background-color: #fd7e14; }
+.status-badge-critical { background-color: #6f0000; }
+.status-badge-open { background-color: #dc3545; }
+.status-badge-investigating { background-color: #fd7e14; }
+.status-badge-resolved, .status-badge-closed { background-color: #6c757d; }
+
+code.hash {
+    font-size: 0.8rem;
+}
+
+.text-monospace-sm {
+    font-family: var(--bs-font-monospace);
+    font-size: 0.85rem;
+}

@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+<head th:replace="~{layout/fragments :: head(title='Tools')}"></head>
+<body>
+<nav th:replace="~{layout/fragments :: navbar}"></nav>
+<main class="container-fluid py-4">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h1 class="h3 mb-0">Tools</h1>
+        <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#registerToolModal">
+            Register tool
+        </button>
+    </div>
+
+    <div id="alertHost"></div>
+
+    <div class="card">
+        <div class="card-body">
+            <table class="table table-hover align-middle data-table" id="toolsTable">
+                <thead>
+                <tr>
+                    <th>Name</th>
+                    <th>Type</th>
+                    <th>Group</th>
+                    <th>Approval status</th>
+                    <th>Drift</th>
+                    <th>Environment</th>
+                    <th>Actions</th>
+                </tr>
+                </thead>
+                <tbody>
+                <tr th:each="tool : ${tools}" th:attr="data-tool-id=${tool.id}">
+                    <td><a th:href="@{'/tools/' + ${tool.id}}" th:text="${tool.name}">mock-git</a></td>
+                    <td th:text="${tool.type}">GIT</td>
+                    <td th:text="${tool.toolGroup}">default</td>
+                    <td>
+                        <span class="badge" th:classappend="'status-badge-' + ${#strings.toLowerCase(tool.approvalStatus)}"
+                              th:text="${tool.approvalStatus}">PENDING</span>
+                    </td>
+                    <td>
+                        <span class="badge status-badge-drifted" th:if="${tool.hasDrift()}">DRIFTED</span>
+                        <span class="text-secondary" th:unless="${tool.hasDrift()}">&ndash;</span>
+                    </td>
+                    <td th:text="${tool.environment}">DEV</td>
+                    <td>
+                        <div class="btn-group btn-group-sm">
+                            <button type="button" class="btn btn-outline-success btn-approve">Approve</button>
+                            <button type="button" class="btn btn-outline-danger btn-reject">Reject</button>
+                        </div>
+                    </td>
+                </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</main>
+
+<div class="modal fade" id="registerToolModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Register tool</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="registerToolForm">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Name</label>
+                        <input type="text" class="form-control" name="name" required/>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Type</label>
+                        <select class="form-select" name="type">
+                            <option th:each="t : ${toolTypes}" th:value="${t}" th:text="${t}"></option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Tool group</label>
+                        <input type="text" class="form-control" name="toolGroup" placeholder="default"/>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Endpoint URL</label>
+                        <input type="text" class="form-control" name="endpointUrl" placeholder="/demo/tools/my-tool"/>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Description</label>
+                        <textarea class="form-control" name="description" rows="2"></textarea>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Schema JSON</label>
+                        <textarea class="form-control" name="schemaJson" rows="2">{}</textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="submit" class="btn btn-primary">Register</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<div th:replace="~{layout/fragments :: scripts}"></div>
+<script th:inline="javascript">
+    var currentUser = /*[[${#authentication.name}]]*/ 'admin';
+
+    function showAlert(message, type) {
+        $('#alertHost').html('<div class="alert alert-' + type + ' alert-dismissible fade show" role="alert">' +
+            message + '<button type="button" class="btn-close" data-bs-dismiss="alert"></button></div>');
+    }
+
+    $('#registerToolForm').on('submit', function (e) {
+        e.preventDefault();
+        var payload = {
+            name: $(this).find('[name=name]').val(),
+            type: $(this).find('[name=type]').val(),
+            toolGroup: $(this).find('[name=toolGroup]').val(),
+            endpointUrl: $(this).find('[name=endpointUrl]').val(),
+            description: $(this).find('[name=description]').val(),
+            schemaJson: $(this).find('[name=schemaJson]').val()
+        };
+        $.ajax({url: '/api/tools', method: 'POST', contentType: 'application/json', data: JSON.stringify(payload)})
+            .done(function () { location.reload(); })
+            .fail(function (xhr) { showAlert('Failed to register tool: ' + (xhr.responseJSON ? xhr.responseJSON.error : xhr.statusText), 'danger'); });
+    });
+
+    $('#toolsTable').on('click', '.btn-approve, .btn-reject', function () {
+        var id = $(this).closest('tr').data('tool-id');
+        var action = $(this).hasClass('btn-approve') ? 'approve' : 'reject';
+        $.ajax({
+            url: '/api/tools/' + id + '/' + action, method: 'POST', contentType: 'application/json',
+            data: JSON.stringify({decidedBy: currentUser})
+        }).done(function () { location.reload(); })
+            .fail(function (xhr) { showAlert('Action failed: ' + (xhr.responseJSON ? xhr.responseJSON.error : xhr.statusText), 'danger'); });
+    });
+</script>
+</body>
+</html>

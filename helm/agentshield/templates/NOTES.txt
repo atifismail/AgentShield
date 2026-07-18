@@ -1,0 +1,9 @@
+AgentShield has been deployed as {{ .Release.Name }}-agentshield.
+
+Check status with:
+  kubectl get pods -l app.kubernetes.io/instance={{ .Release.Name }}
+
+Port-forward for local access:
+  kubectl port-forward svc/{{ .Release.Name }}-agentshield 8080:{{ .Values.service.port }}
+
+Make sure the secrets {{ .Values.database.existingSecret }} and {{ .Values.admin.existingSecret }} exist in this namespace before installing.

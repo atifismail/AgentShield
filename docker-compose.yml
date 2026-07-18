@@ -1,0 +1,33 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: agentshield
+      POSTGRES_USER: agentshield
+      POSTGRES_PASSWORD: agentshield
+    ports:
+      - "5432:5432"
+    volumes:
+      - agentshield-postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U agentshield -d agentshield"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  app:
+    build: .
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      AGENTSHIELD_DB_URL: jdbc:postgresql://postgres:5432/agentshield
+      AGENTSHIELD_DB_USER: agentshield
+      AGENTSHIELD_DB_PASSWORD: agentshield
+      AGENTSHIELD_ADMIN_USER: admin
+      AGENTSHIELD_ADMIN_PASSWORD: changeit
+    ports:
+      - "8080:8080"
+
+volumes:
+  agentshield-postgres-data:

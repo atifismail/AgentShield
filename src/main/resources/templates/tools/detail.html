@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{layout/fragments :: head(title='Tool detail')}"></head>
+<body>
+<nav th:replace="~{layout/fragments :: navbar}"></nav>
+<main class="container-fluid py-4">
+    <p><a th:href="@{/tools}">&larr; Back to tools</a></p>
+    <div class="d-flex justify-content-between align-items-start mb-3">
+        <div>
+            <h1 class="h3 mb-1" th:text="${tool.name}">mock-git</h1>
+            <span class="badge" th:classappend="'status-badge-' + ${#strings.toLowerCase(tool.approvalStatus)}"
+                  th:text="${tool.approvalStatus}">APPROVED</span>
+            <span class="badge status-badge-drifted" th:if="${tool.hasDrift()}">DRIFTED</span>
+        </div>
+    </div>
+
+    <div class="row g-3">
+        <div class="col-lg-6">
+            <div class="card">
+                <div class="card-header">Details</div>
+                <ul class="list-group list-group-flush">
+                    <li class="list-group-item"><strong>Type:</strong> <span th:text="${tool.type}">GIT</span></li>
+                    <li class="list-group-item"><strong>Group:</strong> <span th:text="${tool.toolGroup}">default</span></li>
+                    <li class="list-group-item"><strong>Endpoint:</strong> <code th:text="${tool.endpointUrl}">/demo/tools/git</code></li>
+                    <li class="list-group-item"><strong>Owner:</strong> <span th:text="${tool.owner}">-</span></li>
+                    <li class="list-group-item"><strong>Environment:</strong> <span th:text="${tool.environment}">-</span></li>
+                    <li class="list-group-item"><strong>Approved hash:</strong> <code class="hash" th:text="${tool.approvedHash}">-</code></li>
+                    <li class="list-group-item"><strong>Current hash:</strong> <code class="hash" th:text="${tool.currentHash}">-</code></li>
+                    <li class="list-group-item"><strong>Description:</strong> <span th:text="${tool.description}">-</span></li>
+                </ul>
+            </div>
+        </div>
+        <div class="col-lg-6">
+            <div class="card">
+                <div class="card-header">Version / drift history</div>
+                <ul class="list-group list-group-flush">
+                    <li class="list-group-item text-secondary" th:if="${#lists.isEmpty(versions)}">No versions recorded.</li>
+                    <li class="list-group-item" th:each="v : ${versions}">
+                        <div class="d-flex justify-content-between">
+                            <code class="hash" th:text="${v.hash}">hash</code>
+                            <span class="badge" th:classappend="'status-badge-' + ${#strings.toLowerCase(v.status)}" th:text="${v.status}">DETECTED</span>
+                        </div>
+                        <div class="text-secondary small" th:text="${#temporals.format(v.detectedAt, 'yyyy-MM-dd HH:mm')}">-</div>
+                        <div class="small" th:if="${v.approvedBy}">Decided by <span th:text="${v.approvedBy}"></span> at <span th:text="${#temporals.format(v.approvedAt, 'yyyy-MM-dd HH:mm')}"></span></div>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</main>
+<div th:replace="~{layout/fragments :: scripts}"></div>
+</body>
+</html>

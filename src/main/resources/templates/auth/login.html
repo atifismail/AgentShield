@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{layout/fragments :: head(title='Sign in')}"></head>
+<body class="d-flex align-items-center justify-content-center vh-100 bg-dark">
+<main class="card shadow-sm" style="width: 22rem;">
+    <div class="card-body">
+        <h1 class="h4 mb-3 text-center">AgentShield</h1>
+        <p class="text-secondary text-center small mb-4">Sign in to the admin console</p>
+
+        <div class="alert alert-danger py-2" th:if="${error}">Invalid username or password.</div>
+        <div class="alert alert-success py-2" th:if="${loggedOut}">You have been signed out.</div>
+
+        <form th:action="@{/login}" method="post">
+            <div class="mb-3">
+                <label class="form-label" for="username">Username</label>
+                <input type="text" class="form-control" id="username" name="username" required autofocus/>
+            </div>
+            <div class="mb-3">
+                <label class="form-label" for="password">Password</label>
+                <input type="password" class="form-control" id="password" name="password" required/>
+            </div>
+            <button type="submit" class="btn btn-primary w-100">Sign in</button>
+        </form>
+    </div>
+</main>
+<div th:replace="~{layout/fragments :: scripts}"></div>
+</body>
+</html>
