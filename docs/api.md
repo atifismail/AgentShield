@@ -95,8 +95,24 @@ one, update the caller, then revoke the old one).
 | POST | `/api/policies/dry-run` | ADMIN / SECURITY_ANALYST | Evaluate a hypothetical request against the live default rules, no persistence |
 
 The stored `rule_json` on a policy version is versioned metadata for review/rollback. The rules
-that actually execute are the fixed default rules in `PolicyEngine` for this release — see
-`docs/policy-guide.md`.
+that actually execute are the fixed default rules in `PolicyEngine`, plus any policy overrides
+below — see `docs/policy-guide.md`.
+
+## Policy overrides — `/api/policy-overrides`
+
+| Method | Path | Role | Notes |
+|---|---|---|---|
+| GET | `/api/policy-overrides` | ADMIN / SECURITY_ANALYST | List all overrides |
+| POST | `/api/policy-overrides` | ADMIN / SECURITY_ANALYST | Create one — `{actionCategory, targetEnvironment, toolGroup, agentName, decision, reason, priority}`, all match fields optional (null = matches anything) |
+| POST | `/api/policy-overrides/{id}/enable` | ADMIN / SECURITY_ANALYST | |
+| POST | `/api/policy-overrides/{id}/disable` | ADMIN / SECURITY_ANALYST | |
+| DELETE | `/api/policy-overrides/{id}` | ADMIN / SECURITY_ANALYST | |
+
+Overrides are database-backed rules an operator can add without a code change. They are only
+consulted when the fixed `PolicyEngine` rules would otherwise ALLOW a request — an override can
+add extra restriction (`DENY`/`APPROVAL_REQUIRED`) or a deliberate scoped allowance (`ALLOW`), but
+it can never bypass a fixed DENY or APPROVAL_REQUIRED rule (e.g. a disabled agent stays denied
+regardless of any override). Every create/enable/disable/delete is audited.
 
 ## Approvals — `/api/approvals`
 

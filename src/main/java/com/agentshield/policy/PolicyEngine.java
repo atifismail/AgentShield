@@ -9,17 +9,25 @@ import org.springframework.stereotype.Component;
 /**
  * The default Java-based policy evaluator. Implements the 10 default rules from
  * PROJECT_PLAN.md section 10, evaluated in order — the first matching rule decides
- * the outcome; if none match, the request is ALLOWed. Every non-allow outcome carries
- * a human-readable reason (AGENTS.md rule 7).
+ * the outcome; if none match, database-backed overrides are consulted, and if none of those
+ * match either, the request is ALLOWed. Every non-allow outcome carries a human-readable reason
+ * (AGENTS.md rule 7).
  *
  * Rules 7 and 8 inspect the tool's *response* and can only be evaluated after the call
  * has been forwarded, so they live in {@link #evaluateResponse}, not {@link #evaluateRequest}.
  */
 @Component
-public class PolicyEngine {
+public class PolicyEngine implements PolicyEvaluator {
 
     static final int DEFAULT_MAX_PAYLOAD_BYTES = 262_144; // 256 KiB
 
+    private final PolicyOverrideRepository overrideRepository;
+
+    public PolicyEngine(PolicyOverrideRepository overrideRepository) {
+        this.overrideRepository = overrideRepository;
+    }
+
+    @Override
     public PolicyOutcome evaluateRequest(PolicyEvaluationContext ctx) {
         PolicyOutcome outcome;
         if ((outcome = denyDisabledAgent(ctx)) != null) {
@@ -46,7 +54,24 @@ public class PolicyEngine {
         if ((outcome = denyOversizedPayload(ctx)) != null) {
             return outcome;
         }
+        if ((outcome = evaluateOverrides(ctx)) != null) {
+            return outcome;
+        }
         return PolicyOutcome.allow();
+    }
+
+    /**
+     * Only reached when every fixed safety rule above would otherwise ALLOW — an override can
+     * add extra restriction (or a scoped extra allowance an operator explicitly configured) but
+     * can never weaken the fixed rules, since those are checked first and unconditionally.
+     */
+    PolicyOutcome evaluateOverrides(PolicyEvaluationContext ctx) {
+        for (PolicyOverride override : overrideRepository.findActiveOrderByPriority()) {
+            if (override.matches(ctx)) {
+                return new PolicyOutcome(override.getDecision(), override.getReason(), "override-" + override.getId());
+            }
+        }
+        return null;
     }
 
     /** Rule 1: deny disabled agents. */
@@ -140,6 +165,7 @@ public class PolicyEngine {
      * @param destinationIsExternal true when the originating action category is EXTERNAL_TRANSFER —
      *                               that is what PROJECT_PLAN.md means by "destination is external".
      */
+    @Override
     public PolicyOutcome evaluateResponse(boolean destinationIsExternal, DetectionResult secretResult,
             DetectionResult injectionResult) {
         if (destinationIsExternal && secretResult.matched()) {

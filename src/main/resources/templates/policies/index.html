@@ -70,6 +70,91 @@
             </div>
         </div>
     </div>
+
+    <div class="row g-3 mt-1">
+        <div class="col-lg-7">
+            <div class="card">
+                <div class="card-header">Policy overrides</div>
+                <div class="card-body">
+                    <p class="text-secondary small">
+                        Consulted only when the built-in rules would otherwise ALLOW a request — an override
+                        can add extra restriction (or a deliberate scoped allowance) without a code change.
+                        It can never bypass a built-in DENY or APPROVAL_REQUIRED rule.
+                    </p>
+                    <table class="table table-hover align-middle data-table" id="overridesTable">
+                        <thead>
+                        <tr><th>Enabled</th><th>Action</th><th>Environment</th><th>Tool group</th><th>Agent</th><th>Decision</th><th>Reason</th><th>Priority</th><th>Actions</th></tr>
+                        </thead>
+                        <tbody>
+                        <tr th:each="o : ${overrides}" th:attr="data-override-id=${o.id}">
+                            <td>
+                                <span class="badge" th:classappend="${o.enabled} ? 'status-badge-approved' : 'status-badge-pending'"
+                                      th:text="${o.enabled} ? 'ENABLED' : 'DISABLED'">ENABLED</span>
+                            </td>
+                            <td th:text="${o.actionCategory} ?: 'any'">any</td>
+                            <td th:text="${o.targetEnvironment} ?: 'any'">any</td>
+                            <td th:text="${o.toolGroup} ?: 'any'">any</td>
+                            <td th:text="${o.agentName} ?: 'any'">any</td>
+                            <td><span class="badge" th:classappend="'status-badge-' + ${#strings.toLowerCase(o.decision)}" th:text="${o.decision}">DENY</span></td>
+                            <td th:text="${o.reason}">reason</td>
+                            <td th:text="${o.priority}">100</td>
+                            <td>
+                                <button type="button" class="btn btn-sm btn-outline-success btn-override-toggle" th:if="${!o.enabled}">Enable</button>
+                                <button type="button" class="btn btn-sm btn-outline-secondary btn-override-toggle-off" th:if="${o.enabled}">Disable</button>
+                                <button type="button" class="btn btn-sm btn-outline-danger btn-override-delete">Delete</button>
+                            </td>
+                        </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-5">
+            <div class="card">
+                <div class="card-header">Add an override</div>
+                <div class="card-body">
+                    <form id="createOverrideForm">
+                        <div class="mb-2">
+                            <label class="form-label small">Action category (blank = any)</label>
+                            <select class="form-select form-select-sm" name="actionCategory">
+                                <option value="">any</option>
+                                <option th:each="c : ${actionCategories}" th:value="${c}" th:text="${c}"></option>
+                            </select>
+                        </div>
+                        <div class="mb-2">
+                            <label class="form-label small">Target environment (blank = any)</label>
+                            <input type="text" class="form-control form-control-sm" name="targetEnvironment" placeholder="PROD"/>
+                        </div>
+                        <div class="mb-2">
+                            <label class="form-label small">Tool group (blank = any)</label>
+                            <input type="text" class="form-control form-control-sm" name="toolGroup" placeholder="database"/>
+                        </div>
+                        <div class="mb-2">
+                            <label class="form-label small">Agent name (blank = any)</label>
+                            <input type="text" class="form-control form-control-sm" name="agentName"/>
+                        </div>
+                        <div class="mb-2">
+                            <label class="form-label small">Decision</label>
+                            <select class="form-select form-select-sm" name="decision">
+                                <option value="DENY">DENY</option>
+                                <option value="APPROVAL_REQUIRED">APPROVAL_REQUIRED</option>
+                                <option value="ALLOW">ALLOW</option>
+                            </select>
+                        </div>
+                        <div class="mb-2">
+                            <label class="form-label small">Reason</label>
+                            <input type="text" class="form-control form-control-sm" name="reason" required/>
+                        </div>
+                        <div class="mb-2">
+                            <label class="form-label small">Priority (lower runs first)</label>
+                            <input type="number" class="form-control form-control-sm" name="priority" value="100"/>
+                        </div>
+                        <button type="submit" class="btn btn-sm btn-primary">Add override</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
 </main>
 <div th:replace="~{layout/fragments :: scripts}"></div>
 <script th:src="@{/js/policies.js}"></script>

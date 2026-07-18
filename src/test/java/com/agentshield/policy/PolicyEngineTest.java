@@ -10,11 +10,20 @@ import com.agentshield.risk.DetectionResult;
 import com.agentshield.tool.Tool;
 import com.agentshield.tool.ToolApprovalStatus;
 import com.agentshield.tool.ToolType;
+import java.util.List;
 import org.junit.jupiter.api.Test;
+import org.mockito.Mockito;
 
 class PolicyEngineTest {
 
-    private final PolicyEngine engine = new PolicyEngine();
+    // No overrides configured for these tests — they exercise the fixed rules in isolation.
+    // PolicyOverrideTest covers the override layer itself.
+    private final PolicyOverrideRepository overrideRepository = Mockito.mock(PolicyOverrideRepository.class);
+    private final PolicyEngine engine = new PolicyEngine(overrideRepository);
+
+    {
+        Mockito.when(overrideRepository.findActiveOrderByPriority()).thenReturn(List.of());
+    }
 
     private Agent agent(AgentStatus status, String... allowedGroups) {
         Agent agent = new Agent();

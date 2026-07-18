@@ -71,3 +71,24 @@ Both detectors are deterministic (pattern/regex based) so the product runs fully
 ## Versioning and dry-run
 
 Policies are versioned by name (`policies` table: `name` + `version`, only one version `enabled` at a time). Before enabling a new policy version, use the dry-run evaluation endpoint to test it against a hypothetical request — this evaluates the rules without creating a `GatewayRequest` or any audit trail.
+
+## Policy overrides (no code change required)
+
+The 10 default rules above are fixed Java code. For a rule an operator needs to add or change
+without a deployment, use `/api/policy-overrides` (or the "Policy overrides" section on the
+Policies page) instead: `{actionCategory, targetEnvironment, toolGroup, agentName, decision,
+reason, priority}`, where any match field left blank means "matches anything."
+
+Overrides are checked **after** all 10 fixed rules, and only when those would otherwise `ALLOW`.
+That ordering is deliberate: an override can add extra restriction, or a deliberately scoped
+extra allowance, but it can never undo a fixed `DENY` or `APPROVAL_REQUIRED` — a disabled agent
+stays denied, a destructive PROD action stays blocked, no override can change that. When multiple
+overrides match, the one with the lowest `priority` number wins. Every override create, enable,
+disable, and delete is audited.
+
+## Extending the evaluator (OPA, etc.)
+
+`PolicyEngine` implements a small `PolicyEvaluator` interface (`evaluateRequest` /
+`evaluateResponse`). `OpaPolicyEvaluator` exists as a documented extension point for a future Open
+Policy Agent sidecar integration but is intentionally unimplemented and not wired into Spring —
+AgentShield must not require a paid or external service for its MVP.
