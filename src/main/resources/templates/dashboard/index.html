@@ -79,28 +79,9 @@
         </div>
     </div>
 </main>
+<!-- Inert JSON data island, not a script — the strict CSP (script-src 'self', no unsafe-inline)
+     would silently block an executed inline <script> block, so app.js reads this instead. -->
+<script type="application/json" id="dashboard-chart-data" th:utext="${#objects.nullSafe(chartSeriesJson, '{}')}"></script>
 <div th:replace="~{layout/fragments :: scripts}"></div>
-<script th:inline="javascript">
-    /*<![CDATA[*/
-    var dashboardSeries = /*[[${chartSeries}]]*/ {labels: [], allow: [], deny: [], approval: []};
-    /*]]>*/
-    $(function () {
-        var ctx = document.getElementById('requestVolumeChart');
-        if (ctx && window.Chart) {
-            new Chart(ctx, {
-                type: 'bar',
-                data: {
-                    labels: dashboardSeries.labels,
-                    datasets: [
-                        {label: 'Allow', data: dashboardSeries.allow, backgroundColor: '#198754'},
-                        {label: 'Deny', data: dashboardSeries.deny, backgroundColor: '#dc3545'},
-                        {label: 'Approval required', data: dashboardSeries.approval, backgroundColor: '#ffc107'}
-                    ]
-                },
-                options: {responsive: true, scales: {x: {stacked: true}, y: {stacked: true, beginAtZero: true}}}
-            });
-        }
-    });
-</script>
 </body>
 </html>

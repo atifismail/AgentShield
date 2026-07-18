@@ -60,4 +60,14 @@ public class AuditEvent {
 
     @Column(name = "created_at", nullable = false)
     private Instant createdAt = Instant.now();
+
+    /** SHA-256 of this event's canonical content plus {@link #previousEventHash} — see AuditHashChain. */
+    @Column(name = "event_hash", length = 64)
+    private String eventHash;
+
+    @Column(name = "previous_event_hash", length = 64)
+    private String previousEventHash;
+
+    @Column(name = "hash_algorithm", length = 32)
+    private String hashAlgorithm;
 }

@@ -1,5 +1,6 @@
 package com.agentshield.audit;
 
+import com.agentshield.audit.AuditIntegrityService.VerificationResult;
 import com.agentshield.common.AuditSeverity;
 import java.time.Instant;
 import org.springframework.data.domain.Page;
@@ -16,9 +17,11 @@ import org.springframework.web.bind.annotation.RestController;
 public class AuditController {
 
     private final AuditEventRepository repository;
+    private final AuditIntegrityService integrityService;
 
-    public AuditController(AuditEventRepository repository) {
+    public AuditController(AuditEventRepository repository, AuditIntegrityService integrityService) {
         this.repository = repository;
+        this.integrityService = integrityService;
     }
 
     @GetMapping
@@ -37,5 +40,11 @@ public class AuditController {
     public Page<AuditEvent> timeline(@PathVariable String correlationId,
             @RequestParam(defaultValue = "0") int page, @RequestParam(defaultValue = "200") int size) {
         return repository.findByCorrelationIdOrderByCreatedAtAsc(correlationId, PageRequest.of(page, size));
+    }
+
+    /** Read-only: recomputes and checks the audit hash chain. Safe to call at any time. */
+    @GetMapping("/verify-integrity")
+    public VerificationResult verifyIntegrity() {
+        return integrityService.verifyChain();
     }
 }

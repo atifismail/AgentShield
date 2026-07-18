@@ -51,23 +51,6 @@
     </div>
 </main>
 <div th:replace="~{layout/fragments :: scripts}"></div>
-<script th:inline="javascript">
-    var currentUser = /*[[${#authentication.name}]]*/ 'admin';
-
-    function showAlert(message, type) {
-        $('#alertHost').html('<div class="alert alert-' + type + ' alert-dismissible fade show" role="alert">' +
-            message + '<button type="button" class="btn-close" data-bs-dismiss="alert"></button></div>');
-    }
-
-    $('table').on('click', '.btn-approve, .btn-reject', function () {
-        var id = $(this).closest('tr').data('approval-id');
-        var action = $(this).hasClass('btn-approve') ? 'approve' : 'reject';
-        $.ajax({
-            url: '/api/approvals/' + id + '/' + action, method: 'POST', contentType: 'application/json',
-            data: JSON.stringify({decidedBy: currentUser})
-        }).done(function () { location.reload(); })
-            .fail(function (xhr) { showAlert('Action failed: ' + (xhr.responseJSON ? xhr.responseJSON.error : xhr.statusText), 'danger'); });
-    });
-</script>
+<script th:src="@{/js/approvals.js}"></script>
 </body>
 </html>

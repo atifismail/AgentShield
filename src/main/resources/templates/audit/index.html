@@ -6,11 +6,15 @@
 <main class="container-fluid py-4">
     <div class="d-flex justify-content-between align-items-center mb-3">
         <h1 class="h3 mb-0">Audit</h1>
-        <a class="btn btn-outline-secondary btn-sm" target="_blank"
-           th:href="@{/api/audit(agentId=${filterAgentId},toolId=${filterToolId},severity=${filterSeverity},size=500)}">
-            Export JSON
-        </a>
+        <div>
+            <button type="button" class="btn btn-outline-secondary btn-sm" id="verifyIntegrityBtn">Verify Integrity</button>
+            <a class="btn btn-outline-secondary btn-sm" target="_blank"
+               th:href="@{/api/audit(agentId=${filterAgentId},toolId=${filterToolId},severity=${filterSeverity},size=500)}">
+                Export JSON
+            </a>
+        </div>
     </div>
+    <div id="integrityResult" class="alert py-2 d-none" role="alert"></div>
 
     <form class="card card-body mb-3" method="get" th:action="@{/audit}">
         <div class="row g-2 align-items-end">

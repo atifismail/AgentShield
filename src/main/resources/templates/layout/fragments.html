@@ -31,7 +31,7 @@
                 </ul>
                 <ul class="navbar-nav" sec:authorize="isAuthenticated()" xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
                     <li class="nav-item">
-                        <span class="navbar-text text-secondary me-3" sec:authentication="name">user</span>
+                        <span class="navbar-text text-secondary me-3" id="currentUserName" sec:authentication="name">user</span>
                     </li>
                     <li class="nav-item">
                         <form th:action="@{/logout}" method="post" class="d-inline">

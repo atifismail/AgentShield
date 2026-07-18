@@ -11,6 +11,7 @@ import com.agentshield.policy.PolicyDecision;
 import com.agentshield.policy.PolicyDecisionRepository;
 import com.agentshield.tool.ToolApprovalStatus;
 import com.agentshield.tool.ToolRepository;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneOffset;
@@ -33,15 +34,17 @@ public class DashboardController {
     private final ApprovalRequestRepository approvalRequestRepository;
     private final ToolRepository toolRepository;
     private final IncidentRepository incidentRepository;
+    private final ObjectMapper objectMapper;
 
     public DashboardController(GatewayRequestRepository gatewayRequestRepository,
             PolicyDecisionRepository policyDecisionRepository, ApprovalRequestRepository approvalRequestRepository,
-            ToolRepository toolRepository, IncidentRepository incidentRepository) {
+            ToolRepository toolRepository, IncidentRepository incidentRepository, ObjectMapper objectMapper) {
         this.gatewayRequestRepository = gatewayRequestRepository;
         this.policyDecisionRepository = policyDecisionRepository;
         this.approvalRequestRepository = approvalRequestRepository;
         this.toolRepository = toolRepository;
         this.incidentRepository = incidentRepository;
+        this.objectMapper = objectMapper;
     }
 
     @GetMapping({"/", "/dashboard"})
@@ -69,8 +72,16 @@ public class DashboardController {
         model.addAttribute("pageTitle", "Dashboard");
         model.addAttribute("stats", stats);
         model.addAttribute("recentIncidents", incidentRepository.findTop5ByOrderByCreatedAtDesc());
-        model.addAttribute("chartSeries", buildChartSeries(recentDecisions));
+        model.addAttribute("chartSeriesJson", toJson(buildChartSeries(recentDecisions)));
         return "dashboard/index";
+    }
+
+    private String toJson(Map<String, Object> value) {
+        try {
+            return objectMapper.writeValueAsString(value);
+        } catch (Exception e) {
+            return "{}";
+        }
     }
 
     private Map<String, Object> buildChartSeries(List<PolicyDecision> decisions) {

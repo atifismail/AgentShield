@@ -115,6 +115,12 @@ Pending approvals past their `expiresAt` (default 60 minutes, `agentshield.appro
 |---|---|---|
 | GET | `/api/audit?agentId=&toolId=&severity=&since=&page=&size=` | Filtered, paginated search |
 | GET | `/api/audit/correlation/{correlationId}` | Full timeline for one gateway request |
+| GET | `/api/audit/verify-integrity` | Read-only: recomputes the audit hash chain and reports whether it's intact — see `docs/operations.md` |
+
+Every audit event is chained: its `event_hash` covers its own content plus the previous event's
+hash (SHA-256), so editing or deleting a historical row is detectable. Writes serialize on this
+chain (a per-write row lock), which is a deliberate correctness-over-throughput tradeoff for a
+security audit trail.
 
 ## Incidents — `/api/incidents`
 

@@ -48,6 +48,22 @@ The gateway is fail-closed, unconditionally: any unexpected error while evaluati
 risk results in a DENY, never an ALLOW. There is no fail-open configuration in this release —
 this is deliberate (see AGENTS.md rule 6).
 
+## Audit trail integrity
+
+Every audit event is part of a SHA-256 hash chain (each event's hash covers its own content plus
+the previous event's hash), so a historical row edited or deleted directly in the database — not
+through the application — is detectable. Check it any time:
+
+```bash
+curl -u admin:changeit http://localhost:8080/api/audit/verify-integrity
+```
+
+`{"valid": true, "eventsChecked": N}` means the chain is intact. `{"valid": false,
+"firstBrokenEventId": <id>, "reason": ...}` means something changed row `<id>` outside the
+application — investigate immediately, this should never happen in normal operation. The same
+check is available as a "Verify Integrity" button on the Audit page in the admin UI. Rows written
+before this feature shipped have no hash and are skipped rather than reported as broken.
+
 ## Rate limiting and request size
 
 `POST /api/gateway/invoke` is rate-limited per bearer token (falling back to remote address),
