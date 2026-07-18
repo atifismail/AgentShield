@@ -7,6 +7,31 @@
 - `GET /actuator/prometheus` — Prometheus-format metrics scrape endpoint.
 - `GET /actuator/metrics` — individual metric browsing.
 
+## Metrics
+
+Product-specific metrics (`com.agentshield.metrics.GatewayMetrics`), on top of the usual JVM/HTTP
+ones Spring Boot exposes automatically:
+
+**Counters**
+
+| Name | Tags | Meaning |
+|---|---|---|
+| `agentshield_gateway_requests_total` | — | Every `/api/gateway/invoke` call, including auth failures |
+| `agentshield_gateway_decisions_total` | `decision` (ALLOW/DENY/APPROVAL_REQUIRED) | Every policy decision recorded, pre- and post-response-scan |
+| `agentshield_gateway_denied_total` | — | Subset of the above where `decision=DENY` |
+| `agentshield_gateway_approval_required_total` | — | Subset of the above where `decision=APPROVAL_REQUIRED` |
+| `agentshield_tool_drift_detected_total` | — | A tool's live fingerprint stopped matching its approved hash |
+| `agentshield_response_blocked_total` | — | A tool response was blocked by the secret/injection scanners |
+| `agentshield_incidents_created_total` | — | An incident record was created |
+
+**Timers**
+
+| Name | Measures |
+|---|---|
+| `agentshield_gateway_latency_seconds` | The full `/api/gateway/invoke` call, auth through response |
+| `agentshield_policy_evaluation_latency_seconds` | Request-time and response-time policy evaluation |
+| `agentshield_tool_forward_latency_seconds` | The outbound call to the tool endpoint |
+
 ## Configuration
 
 All runtime configuration is environment-variable driven (see `src/main/resources/application.yml` for the full list and defaults):

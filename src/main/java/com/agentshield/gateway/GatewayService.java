@@ -17,6 +17,7 @@ import com.agentshield.common.TokenHasher;
 import com.agentshield.gateway.GatewayDtos.InvokeRequest;
 import com.agentshield.gateway.GatewayDtos.InvokeResponse;
 import com.agentshield.incident.IncidentService;
+import com.agentshield.metrics.GatewayMetrics;
 import com.agentshield.policy.PolicyDecision;
 import com.agentshield.policy.PolicyDecisionRepository;
 import com.agentshield.policy.PolicyEngine;
@@ -70,6 +71,7 @@ public class GatewayService {
     private final ObjectMapper objectMapper;
     private final GatewayToolResponseRepository toolResponseRepository;
     private final RawResponseEncryptor rawResponseEncryptor;
+    private final GatewayMetrics metrics;
     private final int maxPayloadBytes;
     private final int defaultApprovalExpirationMinutes;
 
@@ -79,6 +81,7 @@ public class GatewayService {
             PromptInjectionDetector injectionDetector, SecretDetector secretDetector, ToolForwarder toolForwarder,
             AuditService auditService, IncidentService incidentService, ObjectMapper objectMapper,
             GatewayToolResponseRepository toolResponseRepository, RawResponseEncryptor rawResponseEncryptor,
+            GatewayMetrics metrics,
             @Value("${agentshield.gateway.max-payload-bytes:262144}") int maxPayloadBytes,
             @Value("${agentshield.approval.default-expiration-minutes:60}") int defaultApprovalExpirationMinutes) {
         this.agentCredentialRepository = agentCredentialRepository;
@@ -96,6 +99,7 @@ public class GatewayService {
         this.objectMapper = objectMapper;
         this.toolResponseRepository = toolResponseRepository;
         this.rawResponseEncryptor = rawResponseEncryptor;
+        this.metrics = metrics;
         this.maxPayloadBytes = maxPayloadBytes;
         this.defaultApprovalExpirationMinutes = defaultApprovalExpirationMinutes;
     }
@@ -123,6 +127,16 @@ public class GatewayService {
 
     @Transactional
     public InvokeResponse invoke(String bearerToken, InvokeRequest request) {
+        metrics.requestReceived();
+        var gatewayTimer = metrics.startTimer();
+        try {
+            return doInvoke(bearerToken, request);
+        } finally {
+            metrics.stopGatewayTimer(gatewayTimer);
+        }
+    }
+
+    private InvokeResponse doInvoke(String bearerToken, InvokeRequest request) {
         Agent agent = authenticate(bearerToken);
         String correlationId = UUID.randomUUID().toString();
 
@@ -154,7 +168,9 @@ public class GatewayService {
         try {
             PolicyEvaluationContext ctx = new PolicyEvaluationContext(agent, tool, request.actionCategory(),
                     request.targetEnvironment(), payloadBytes, maxPayloadBytes);
+            var policyTimer = metrics.startTimer();
             policyOutcome = policyEngine.evaluateRequest(ctx);
+            metrics.stopPolicyEvaluationTimer(policyTimer);
 
             RiskInput riskInput = RiskInput.builder(request.actionCategory())
                     .prodEnvironment(ctx.isProd())
@@ -208,7 +224,9 @@ public class GatewayService {
     public InvokeResponse executeAndScan(GatewayRequest gatewayRequest, Tool tool, ActionCategory actionCategory,
             JsonNode input, RiskAssessment preCallRisk) {
         String correlationId = gatewayRequest.getCorrelationId();
+        var forwardTimer = metrics.startTimer();
         ToolForwarder.ToolCallResult callResult = toolForwarder.call(tool, input);
+        metrics.stopToolForwardTimer(forwardTimer);
 
         if (!callResult.success()) {
             gatewayRequest.setStatus(GatewayRequestStatus.FAILED);
@@ -225,13 +243,16 @@ public class GatewayService {
         boolean destinationExternal = actionCategory == ActionCategory.EXTERNAL_TRANSFER;
         var secretResult = secretDetector.scan(callResult.rawBody());
         var injectionResult = injectionDetector.scan(callResult.rawBody());
+        var responsePolicyTimer = metrics.startTimer();
         PolicyOutcome responseOutcome = policyEngine.evaluateResponse(destinationExternal, secretResult, injectionResult);
+        metrics.stopPolicyEvaluationTimer(responsePolicyTimer);
         boolean blocked = !responseOutcome.isAllow();
 
         recordToolResponse(gatewayRequest, callResult, blocked, blocked ? responseOutcome.reason() : null,
                 secretResult, injectionResult);
 
         if (blocked) {
+            metrics.responseBlocked();
             RiskInput rescored = RiskInput.builder(actionCategory)
                     .secretConfidence(secretResult.highestConfidence())
                     .injectionConfidence(injectionResult.highestConfidence())
@@ -332,6 +353,7 @@ public class GatewayService {
         decisionRecord.setRiskScore(riskScore);
         decisionRecord.setRiskLevel(riskLevel);
         policyDecisionRepository.save(decisionRecord);
+        metrics.decisionRecorded(decision);
     }
 
     private AuditSeverity severityFor(PolicyDecisionType decision) {

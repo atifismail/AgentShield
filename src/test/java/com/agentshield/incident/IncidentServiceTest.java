@@ -5,6 +5,8 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.agentshield.common.IncidentStatus;
 import com.agentshield.common.ResourceNotFoundException;
+import com.agentshield.metrics.GatewayMetrics;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import java.util.Optional;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
@@ -12,7 +14,7 @@ import org.mockito.Mockito;
 class IncidentServiceTest {
 
     private final IncidentRepository repository = Mockito.mock(IncidentRepository.class);
-    private final IncidentService service = new IncidentService(repository);
+    private final IncidentService service = new IncidentService(repository, new GatewayMetrics(new SimpleMeterRegistry()));
 
     @Test
     void updateStatusTransitionsAndPersists() {

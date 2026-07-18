@@ -8,6 +8,7 @@ import com.agentshield.common.ResourceNotFoundException;
 import com.agentshield.common.TokenHasher;
 import com.agentshield.common.ValidationException;
 import com.agentshield.gateway.OutboundEndpointValidator;
+import com.agentshield.metrics.GatewayMetrics;
 import com.agentshield.tool.ToolDtos.RegisterToolRequest;
 import java.time.Instant;
 import java.util.List;
@@ -25,13 +26,15 @@ public class ToolService {
     private final ToolVersionRepository versionRepository;
     private final AuditService auditService;
     private final OutboundEndpointValidator outboundEndpointValidator;
+    private final GatewayMetrics metrics;
 
     public ToolService(ToolRepository toolRepository, ToolVersionRepository versionRepository,
-            AuditService auditService, OutboundEndpointValidator outboundEndpointValidator) {
+            AuditService auditService, OutboundEndpointValidator outboundEndpointValidator, GatewayMetrics metrics) {
         this.toolRepository = toolRepository;
         this.versionRepository = versionRepository;
         this.auditService = auditService;
         this.outboundEndpointValidator = outboundEndpointValidator;
+        this.metrics = metrics;
     }
 
     /** A newly registered tool starts PENDING: it cannot be called until a human approves its first version. */
@@ -155,6 +158,7 @@ public class ToolService {
                     AuditSeverity.WARNING,
                     "tool '" + tool.getName() + "' schema/description changed; drifted from approved version",
                     null);
+            metrics.toolDriftDetected();
         }
         tool.touch();
         return tool;

@@ -3,6 +3,7 @@ package com.agentshield.incident;
 import com.agentshield.common.AuditSeverity;
 import com.agentshield.common.IncidentStatus;
 import com.agentshield.common.ResourceNotFoundException;
+import com.agentshield.metrics.GatewayMetrics;
 import java.time.Instant;
 import org.springframework.stereotype.Service;
 
@@ -11,9 +12,11 @@ import org.springframework.stereotype.Service;
 public class IncidentService {
 
     private final IncidentRepository repository;
+    private final GatewayMetrics metrics;
 
-    public IncidentService(IncidentRepository repository) {
+    public IncidentService(IncidentRepository repository, GatewayMetrics metrics) {
         this.repository = repository;
+        this.metrics = metrics;
     }
 
     public Incident createFromFinding(String title, String summary, Long relatedAuditEventId,
@@ -25,7 +28,9 @@ public class IncidentService {
         incident.setSummary(summary);
         incident.setRelatedAuditEventId(relatedAuditEventId);
         incident.setRelatedGatewayRequestId(relatedGatewayRequestId);
-        return repository.save(incident);
+        incident = repository.save(incident);
+        metrics.incidentCreated();
+        return incident;
     }
 
     /** Investigation workflow: OPEN -> ACKNOWLEDGED -> RESOLVED, or OPEN -> FALSE_POSITIVE. */
