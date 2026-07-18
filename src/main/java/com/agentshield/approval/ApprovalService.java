@@ -79,7 +79,7 @@ public class ApprovalService {
                     InvokeResponse.deny(RiskLevel.LOW, "original tool reference is no longer available"));
         }
 
-        JsonNode input = parseStoredInput(gatewayRequest.getRequestSummary());
+        JsonNode input = parseStoredInput(gatewayRequest.getRequestBodyJson());
         RiskAssessment preCallRisk = policyDecisionRepository.findTopByGatewayRequestIdOrderByCreatedAtDesc(gatewayRequest.getId())
                 .map(d -> new RiskAssessment(d.getRiskScore(), d.getRiskLevel(), List.of()))
                 .orElse(new RiskAssessment(0, RiskLevel.LOW, List.of()));
@@ -136,12 +136,12 @@ public class ApprovalService {
         return approval;
     }
 
-    private JsonNode parseStoredInput(String requestSummary) {
-        if (requestSummary == null || requestSummary.isBlank()) {
+    private JsonNode parseStoredInput(String requestBodyJson) {
+        if (requestBodyJson == null || requestBodyJson.isBlank()) {
             return objectMapper.createObjectNode();
         }
         try {
-            return objectMapper.readTree(requestSummary);
+            return objectMapper.readTree(requestBodyJson);
         } catch (Exception e) {
             return objectMapper.createObjectNode();
         }

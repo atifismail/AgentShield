@@ -6,6 +6,8 @@ import com.agentshield.common.AuditSeverity;
 import com.agentshield.common.ConflictException;
 import com.agentshield.common.ResourceNotFoundException;
 import com.agentshield.common.TokenHasher;
+import com.agentshield.common.ValidationException;
+import com.agentshield.gateway.OutboundEndpointValidator;
 import com.agentshield.tool.ToolDtos.RegisterToolRequest;
 import java.time.Instant;
 import java.util.List;
@@ -22,12 +24,14 @@ public class ToolService {
     private final ToolRepository toolRepository;
     private final ToolVersionRepository versionRepository;
     private final AuditService auditService;
+    private final OutboundEndpointValidator outboundEndpointValidator;
 
     public ToolService(ToolRepository toolRepository, ToolVersionRepository versionRepository,
-            AuditService auditService) {
+            AuditService auditService, OutboundEndpointValidator outboundEndpointValidator) {
         this.toolRepository = toolRepository;
         this.versionRepository = versionRepository;
         this.auditService = auditService;
+        this.outboundEndpointValidator = outboundEndpointValidator;
     }
 
     /** A newly registered tool starts PENDING: it cannot be called until a human approves its first version. */
@@ -36,6 +40,10 @@ public class ToolService {
         toolRepository.findByName(request.name()).ifPresent(t -> {
             throw new ConflictException("a tool named '" + request.name() + "' already exists");
         });
+        var validation = outboundEndpointValidator.validate(request.endpointUrl());
+        if (!validation.allowed()) {
+            throw new ValidationException("endpoint URL rejected by outbound policy: " + validation.reason());
+        }
         Tool tool = new Tool();
         tool.setName(request.name());
         tool.setType(request.type());

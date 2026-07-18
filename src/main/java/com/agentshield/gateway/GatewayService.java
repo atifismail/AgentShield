@@ -193,9 +193,13 @@ public class GatewayService {
 
         if (!callResult.success()) {
             gatewayRequest.setStatus(GatewayRequestStatus.FAILED);
-            String reason = "tool call failed: " + callResult.errorMessage();
-            auditService.record(correlationId, "gateway.tool_call_failed", ActorType.SYSTEM, "gateway",
-                    gatewayRequest.getAgent().getId(), tool.getId(), AuditSeverity.WARNING, reason, null);
+            String reason = callResult.blockedByPolicy()
+                    ? callResult.errorMessage()
+                    : "tool call failed: " + callResult.errorMessage();
+            String eventType = callResult.blockedByPolicy() ? "gateway.outbound_blocked" : "gateway.tool_call_failed";
+            AuditSeverity severity = callResult.blockedByPolicy() ? AuditSeverity.CRITICAL : AuditSeverity.WARNING;
+            auditService.record(correlationId, eventType, ActorType.SYSTEM, "gateway",
+                    gatewayRequest.getAgent().getId(), tool.getId(), severity, reason, null);
             return InvokeResponse.deny(preCallRisk.level(), reason);
         }
 
@@ -241,6 +245,7 @@ public class GatewayService {
         gatewayRequest.setTargetEnvironment(request.targetEnvironment());
         gatewayRequest.setRequestBodyHash(TokenHasher.sha256Hex(inputJson));
         gatewayRequest.setRequestSummary(truncate(inputJson));
+        gatewayRequest.setRequestBodyJson(inputJson);
         gatewayRequest.setStatus(GatewayRequestStatus.ALLOWED);
         return gatewayRequestRepository.save(gatewayRequest);
     }

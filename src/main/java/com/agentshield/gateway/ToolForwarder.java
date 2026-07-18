@@ -2,8 +2,10 @@ package com.agentshield.gateway;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import java.net.http.HttpClient;
 import org.springframework.boot.web.context.WebServerInitializedEvent;
 import org.springframework.context.event.EventListener;
+import org.springframework.http.client.JdkClientHttpRequestFactory;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
 
@@ -13,17 +15,29 @@ import org.springframework.web.client.RestClient;
  * relative paths like "/demo/tools/git" since they live in this same application — those are
  * resolved against this server's own actual bound port (captured at startup, not the
  * configured value, so it's correct even when a random port is used, e.g. in tests).
+ *
+ * Re-validates the outbound endpoint immediately before every call (registration-time
+ * validation alone isn't enough — DNS can change between registration and call, a classic
+ * SSRF TOCTOU gap) and never follows HTTP redirects, since a redirect is a common way to route
+ * around a host-based allowlist check.
  */
 @Component
 public class ToolForwarder {
 
     private final RestClient restClient;
     private final ObjectMapper objectMapper;
+    private final OutboundEndpointValidator outboundEndpointValidator;
     private volatile String selfBaseUrl = "http://localhost:8080";
 
-    public ToolForwarder(ObjectMapper objectMapper) {
-        this.restClient = RestClient.create();
+    public ToolForwarder(ObjectMapper objectMapper, OutboundEndpointValidator outboundEndpointValidator) {
+        HttpClient jdkClient = HttpClient.newBuilder()
+                .followRedirects(HttpClient.Redirect.NEVER)
+                .build();
+        this.restClient = RestClient.builder()
+                .requestFactory(new JdkClientHttpRequestFactory(jdkClient))
+                .build();
         this.objectMapper = objectMapper;
+        this.outboundEndpointValidator = outboundEndpointValidator;
     }
 
     @EventListener
@@ -32,19 +46,32 @@ public class ToolForwarder {
     }
 
     public ToolCallResult call(String endpointUrl, JsonNode input) {
+        var validation = outboundEndpointValidator.validate(endpointUrl);
+        if (!validation.allowed()) {
+            return ToolCallResult.blocked("blocked by outbound endpoint policy: " + validation.reason());
+        }
+
         try {
             String resolvedUrl = endpointUrl != null && endpointUrl.startsWith("/")
                     ? selfBaseUrl + endpointUrl
                     : endpointUrl;
-            String rawBody = restClient.post()
+            var responseEntity = restClient.post()
                     .uri(resolvedUrl)
                     .body(input == null ? objectMapper.createObjectNode() : input)
                     .retrieve()
-                    .body(String.class);
+                    .toEntity(String.class);
+
+            if (responseEntity.getStatusCode().is3xxRedirection()) {
+                return ToolCallResult.blocked(
+                        "tool endpoint returned a redirect (" + responseEntity.getStatusCode()
+                                + "); redirects are never followed");
+            }
+
+            String rawBody = responseEntity.getBody();
             JsonNode parsed = parseOrWrap(rawBody);
-            return new ToolCallResult(true, rawBody, parsed, null);
+            return new ToolCallResult(true, false, rawBody, parsed, null);
         } catch (Exception e) {
-            return new ToolCallResult(false, null, null, e.getMessage());
+            return new ToolCallResult(false, false, null, null, e.getMessage());
         }
     }
 
@@ -59,6 +86,11 @@ public class ToolForwarder {
         }
     }
 
-    public record ToolCallResult(boolean success, String rawBody, JsonNode parsedBody, String errorMessage) {
+    public record ToolCallResult(boolean success, boolean blockedByPolicy, String rawBody, JsonNode parsedBody,
+            String errorMessage) {
+
+        static ToolCallResult blocked(String reason) {
+            return new ToolCallResult(false, true, null, null, reason);
+        }
     }
 }

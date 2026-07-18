@@ -1,6 +1,7 @@
 package com.agentshield.support;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -38,5 +39,12 @@ public class MockToolController {
     @PostMapping("/fail")
     public ResponseEntity<String> fail() {
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("boom");
+    }
+
+    @PostMapping("/redirect")
+    public ResponseEntity<Void> redirect() {
+        return ResponseEntity.status(HttpStatus.FOUND)
+                .header(HttpHeaders.LOCATION, "http://169.254.169.254/latest/meta-data/")
+                .build();
     }
 }

@@ -46,6 +46,19 @@ agentshield:
     max-request-bytes: 1048576
     rate-limit:
       max-requests-per-minute: 60
+    outbound:
+      allow-relative-demo-tools: true
+      deny-all-unless-allowed: false
+      allowed-hosts:
+        - localhost
+        - 127.0.0.1
+      blocked-ip-ranges:
+        - 169.254.0.0/16
+        - 0.0.0.0/8
+        - 127.0.0.0/8
+        - 10.0.0.0/8
+        - 172.16.0.0/12
+        - 192.168.0.0/16
   approval:
     default-expiration-minutes: 60
 

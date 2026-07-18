@@ -18,6 +18,8 @@ import java.time.Instant;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 @Entity
 @Table(name = "gateway_requests")
@@ -57,8 +59,14 @@ public class GatewayRequest {
     @Column(name = "request_body_hash", length = 128)
     private String requestBodyHash;
 
+    /** Truncated, UI-friendly preview only — never used for approval replay. */
     @Column(name = "request_summary", length = 4000)
     private String requestSummary;
+
+    /** Complete, untruncated normalized input JSON. This is what approval replay executes. */
+    @JdbcTypeCode(SqlTypes.LONGVARCHAR)
+    @Column(name = "request_body_json")
+    private String requestBodyJson;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 32)

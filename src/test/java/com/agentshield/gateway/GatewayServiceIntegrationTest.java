@@ -86,12 +86,17 @@ class GatewayServiceIntegrationTest extends AbstractIntegrationTest {
     }
 
     private ResponseEntity<GatewayDtos.InvokeResponse> invoke(Tool tool, ActionCategory category, String env) {
+        return invoke(tool, category, env, objectMapper.createObjectNode().put("key", "value"));
+    }
+
+    private ResponseEntity<GatewayDtos.InvokeResponse> invoke(Tool tool, ActionCategory category, String env,
+            com.fasterxml.jackson.databind.JsonNode input) {
         ObjectNode body = objectMapper.createObjectNode();
         body.put("toolId", tool.getName());
         body.put("action", "doSomething");
         body.put("actionCategory", category.name());
         body.put("targetEnvironment", env);
-        body.set("input", objectMapper.createObjectNode().put("key", "value"));
+        body.set("input", input);
 
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
@@ -220,6 +225,28 @@ class GatewayServiceIntegrationTest extends AbstractIntegrationTest {
     }
 
     @Test
+    void approvalReplayUsesFullPayloadNotTruncatedSummary() {
+        // request_summary is capped at 4000 chars for UI display; approval replay must use
+        // request_body_json instead, or a payload larger than that gets executed incompletely.
+        createAgent(AgentStatus.ENABLED, "database");
+        Tool tool = createTool(ToolApprovalStatus.APPROVED, "database", "/demo/mock-tool/echo");
+
+        String largeValue = "x".repeat(6000);
+        var input = objectMapper.createObjectNode().put("notes", largeValue);
+        var response = invoke(tool, ActionCategory.WRITE, "PROD", input);
+        assertThat(response.getBody().decision()).isEqualTo(PolicyDecisionType.APPROVAL_REQUIRED);
+        Long approvalId = response.getBody().approvalRequestId();
+
+        ApprovalRequest approval = approvalRequestRepository.findById(approvalId).orElseThrow();
+        assertThat(approval.getGatewayRequest().getRequestBodyJson()).contains(largeValue);
+        assertThat(approval.getGatewayRequest().getRequestSummary().length()).isLessThanOrEqualTo(4000);
+
+        var executed = approvalService.approve(approvalId, "security-analyst-1");
+        assertThat(executed.executionResult().decision()).isEqualTo(PolicyDecisionType.ALLOW);
+        assertThat(executed.executionResult().result().get("notes").asText()).isEqualTo(largeValue);
+    }
+
+    @Test
     void rejectingApprovalKeepsRequestDenied() {
         createAgent(AgentStatus.ENABLED, "database");
         Tool tool = createTool(ToolApprovalStatus.APPROVED, "database", "/demo/mock-tool/echo");
@@ -274,5 +301,38 @@ class GatewayServiceIntegrationTest extends AbstractIntegrationTest {
 
         assertThat(response.getBody().decision()).isEqualTo(PolicyDecisionType.DENY);
         assertThat(response.getBody().reason()).contains("tool call failed");
+    }
+
+    @Test
+    void forwardingToBlockedIpRangeIsDeniedEvenIfRegisteredThatWay() {
+        // Registration-time validation is bypassed here on purpose (direct repository save) to
+        // exercise the separate, independent forward-time check — DNS/registration state can
+        // drift, so both checkpoints must hold on their own.
+        createAgent(AgentStatus.ENABLED, "database");
+        Tool tool = new Tool();
+        tool.setName("ssrf-tool-" + System.nanoTime());
+        tool.setType(ToolType.DATABASE);
+        tool.setToolGroup("database");
+        tool.setEndpointUrl("http://169.254.169.254/latest/meta-data/");
+        tool.setApprovalStatus(ToolApprovalStatus.APPROVED);
+        tool.setApprovedHash("h");
+        tool.setCurrentHash("h");
+        tool = toolRepository.save(tool);
+
+        var response = invoke(tool, ActionCategory.READ, "DEV");
+
+        assertThat(response.getBody().decision()).isEqualTo(PolicyDecisionType.DENY);
+        assertThat(response.getBody().reason()).contains("blocked by outbound endpoint policy");
+    }
+
+    @Test
+    void redirectResponseIsNeverFollowed() {
+        createAgent(AgentStatus.ENABLED, "database");
+        Tool tool = createTool(ToolApprovalStatus.APPROVED, "database", "/demo/mock-tool/redirect");
+
+        var response = invoke(tool, ActionCategory.READ, "DEV");
+
+        assertThat(response.getBody().decision()).isEqualTo(PolicyDecisionType.DENY);
+        assertThat(response.getBody().reason()).containsIgnoringCase("redirect");
     }
 }
