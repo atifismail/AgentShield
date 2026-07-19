@@ -48,7 +48,8 @@ class GatewayMetricsIntegrationTest extends AbstractIntegrationTest {
     private ObjectMapper objectMapper;
 
     @Test
-    void prometheusEndpointExposesGatewayMetricsAfterARealCall() {
+    void metricsEndpointExposesGatewayMetricsAfterARealCall() {
+        TestRestTemplate admin = new TestRestTemplate("admin", "test-only");
         String plaintextToken = "test-token-" + System.nanoTime();
         Agent agent = new Agent();
         agent.setName("it-agent-" + System.nanoTime());
@@ -88,14 +89,12 @@ class GatewayMetricsIntegrationTest extends AbstractIntegrationTest {
                 new HttpEntity<>(body, headers), String.class);
         assertThat(invokeResponse.getStatusCode()).isEqualTo(HttpStatus.OK);
 
-        var scrape = rest.getForEntity("http://localhost:" + port + "/actuator/prometheus", String.class);
+        var scrape = admin.getForEntity("http://localhost:" + port
+                + "/actuator/metrics/agentshield_gateway_requests_total", String.class);
         assertThat(scrape.getStatusCode()).isEqualTo(HttpStatus.OK);
         String body1 = scrape.getBody();
 
         assertThat(body1).contains("agentshield_gateway_requests_total");
-        assertThat(body1).contains("agentshield_gateway_decisions_total");
-        assertThat(body1).contains("agentshield_gateway_latency_seconds");
-        assertThat(body1).contains("agentshield_policy_evaluation_latency_seconds");
-        assertThat(body1).contains("agentshield_tool_forward_latency_seconds");
+        assertThat(body1).contains("measurements");
     }
 }

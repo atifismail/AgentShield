@@ -2,6 +2,7 @@ package com.agentshield.security;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.boot.actuate.autoconfigure.security.servlet.EndpointRequest;
 import org.springframework.core.env.Environment;
 import org.springframework.core.env.Profiles;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
@@ -45,7 +46,7 @@ public class SecurityConfig {
 
         http.authorizeHttpRequests(auth -> {
             auth.requestMatchers("/css/**", "/js/**", "/vendor/**", "/login").permitAll();
-            auth.requestMatchers("/actuator/health/**", "/actuator/prometheus", "/actuator/info").permitAll();
+            auth.requestMatchers(EndpointRequest.to("health", "info", "prometheus")).permitAll();
             // No-op when springdoc.api-docs.enabled/swagger-ui.enabled are false (prod default,
             // improvement_plan.md #13) — springdoc doesn't register the underlying controllers at
             // all in that case, so an anonymous request gets this app's usual unmapped-path

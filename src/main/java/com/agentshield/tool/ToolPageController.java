@@ -41,8 +41,13 @@ public class ToolPageController {
         provenanceService.latestForTool(id).ifPresent(p -> model.addAttribute("provenance", p));
 
         if (tool.hasDrift()) {
-            Optional<ToolVersion> approved = versions.stream().filter(v -> v.getStatus() == ToolVersionStatus.APPROVED).findFirst();
-            Optional<ToolVersion> current = versions.stream().findFirst();
+            Optional<ToolVersion> approved = versions.stream()
+                    .filter(v -> v.getStatus() == ToolVersionStatus.APPROVED)
+                    .findFirst();
+            Optional<ToolVersion> current = versions.stream()
+                    .filter(v -> v.getStatus() == ToolVersionStatus.DETECTED)
+                    .findFirst()
+                    .or(() -> versions.stream().findFirst());
             if (approved.isPresent() && current.isPresent() && !approved.get().getId().equals(current.get().getId())) {
                 model.addAttribute("driftDiff", diffLines(
                         approved.get().getDescription() + "\n" + approved.get().getSchemaJson(),
