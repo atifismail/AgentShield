@@ -125,7 +125,8 @@ public class ApprovalService {
     }
 
     private ApprovalRequest requirePending(Long id) {
-        ApprovalRequest approval = get(id);
+        ApprovalRequest approval = repository.findByIdForUpdate(id)
+                .orElseThrow(() -> new ResourceNotFoundException("approval " + id + " not found"));
         if (approval.isExpired(Instant.now()) && approval.isPending()) {
             approval.setStatus(ApprovalStatus.EXPIRED);
             throw new ConflictException("approval " + id + " expired before a decision was made");

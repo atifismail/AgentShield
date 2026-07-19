@@ -11,11 +11,14 @@ import com.agentshield.agent.CredentialStatus;
 import com.agentshield.approval.ApprovalRequest;
 import com.agentshield.approval.ApprovalRequestRepository;
 import com.agentshield.approval.ApprovalService;
+import com.agentshield.audit.AuditEvent;
+import com.agentshield.audit.AuditEventRepository;
 import com.agentshield.common.ActionCategory;
 import com.agentshield.common.ApprovalStatus;
 import com.agentshield.common.GatewayRequestStatus;
 import com.agentshield.common.PolicyDecisionType;
 import com.agentshield.common.TokenHasher;
+import com.agentshield.incident.Incident;
 import com.agentshield.incident.IncidentRepository;
 import com.agentshield.support.AbstractIntegrationTest;
 import com.agentshield.tool.Tool;
@@ -24,6 +27,7 @@ import com.agentshield.tool.ToolRepository;
 import com.agentshield.tool.ToolType;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -61,6 +65,8 @@ class GatewayServiceIntegrationTest extends AbstractIntegrationTest {
     private ObjectMapper objectMapper;
     @Autowired
     private GatewayToolResponseRepository toolResponseRepository;
+    @Autowired
+    private AuditEventRepository auditEventRepository;
 
     private final TestRestTemplate rest = new TestRestTemplate();
     private String plaintextToken;
@@ -333,7 +339,7 @@ class GatewayServiceIntegrationTest extends AbstractIntegrationTest {
     }
 
     @Test
-    void secretInResponseIsBlockedForExternalTransferAndCreatesIncident() {
+    void secretInResponseIsBlockedForExternalTransferAndCreatesIncident() throws Exception {
         Agent agent = createAgent(AgentStatus.ENABLED, "saas");
         Tool tool = createTool(ToolApprovalStatus.APPROVED, "saas", "/demo/mock-tool/secret");
 
@@ -355,6 +361,27 @@ class GatewayServiceIntegrationTest extends AbstractIntegrationTest {
         assertThat(toolResponse.getResponseSummary()).doesNotContain("ABCDEF1234567890").contains("blocked");
         assertThat(toolResponse.getDetectorMatchesJson()).isNotBlank();
         assertThat(toolResponse.getResponseBodyHash()).isNotBlank();
+
+        // Broader raw-secret non-persistence assertions (improvement_plan.md P1): the matched
+        // secret text must never surface anywhere downstream of the detector — not in the audit
+        // trail, not in the incident record, and not in the API response returned to the caller.
+        String rawSecret = "ABCDEF1234567890";
+        List<AuditEvent> correlationEvents =
+                auditEventRepository.findByCorrelationIdOrderByCreatedAtAsc(toolResponse.getGatewayRequest().getCorrelationId(),
+                        org.springframework.data.domain.PageRequest.of(0, 100)).getContent();
+        assertThat(correlationEvents).isNotEmpty();
+        for (AuditEvent event : correlationEvents) {
+            assertThat(event.getMessage()).doesNotContain(rawSecret);
+            if (event.getMetadataJson() != null) {
+                assertThat(event.getMetadataJson()).doesNotContain(rawSecret);
+            }
+        }
+
+        Incident incident = incidentRepository.findTop5ByOrderByCreatedAtDesc().get(0);
+        assertThat(incident.getSummary()).doesNotContain(rawSecret);
+
+        assertThat(executed.executionResult().reason()).doesNotContain(rawSecret);
+        assertThat(objectMapper.writeValueAsString(executed)).doesNotContain(rawSecret);
     }
 
     @Test
