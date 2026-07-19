@@ -4,6 +4,7 @@ import com.agentshield.policy.PolicyDtos.CreateVersionRequest;
 import com.agentshield.policy.PolicyDtos.DryRunRequest;
 import com.agentshield.policy.PolicyDtos.DryRunResponse;
 import com.agentshield.policy.PolicyDtos.PolicyResponse;
+import com.agentshield.policy.PolicyDtos.ReplayResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import java.util.List;
@@ -57,5 +58,10 @@ public class PolicyController {
     @PostMapping("/dry-run")
     public DryRunResponse dryRun(@Valid @RequestBody DryRunRequest request) {
         return DryRunResponse.from(policyService.dryRun(request));
+    }
+
+    @GetMapping("/replay/{gatewayRequestId}")
+    public ReplayResponse replay(@PathVariable Long gatewayRequestId) {
+        return policyService.replay(gatewayRequestId);
     }
 }

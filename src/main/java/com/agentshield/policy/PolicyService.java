@@ -7,10 +7,16 @@ import com.agentshield.common.ActorType;
 import com.agentshield.common.AuditSeverity;
 import com.agentshield.common.PolicyMode;
 import com.agentshield.common.ResourceNotFoundException;
+import com.agentshield.common.ValidationException;
+import com.agentshield.gateway.GatewayRequest;
+import com.agentshield.gateway.GatewayRequestRepository;
 import com.agentshield.policy.PolicyDtos.DryRunRequest;
+import com.agentshield.policy.PolicyDtos.ReplayResponse;
 import com.agentshield.tool.Tool;
 import com.agentshield.tool.ToolRepository;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
+import java.util.Objects;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -20,14 +26,19 @@ public class PolicyService {
     private final PolicyRepository policyRepository;
     private final AgentRepository agentRepository;
     private final ToolRepository toolRepository;
+    private final GatewayRequestRepository gatewayRequestRepository;
+    private final PolicyDecisionRepository policyDecisionRepository;
     private final PolicyEngine policyEngine;
     private final AuditService auditService;
 
     public PolicyService(PolicyRepository policyRepository, AgentRepository agentRepository,
-            ToolRepository toolRepository, PolicyEngine policyEngine, AuditService auditService) {
+            ToolRepository toolRepository, GatewayRequestRepository gatewayRequestRepository,
+            PolicyDecisionRepository policyDecisionRepository, PolicyEngine policyEngine, AuditService auditService) {
         this.policyRepository = policyRepository;
         this.agentRepository = agentRepository;
         this.toolRepository = toolRepository;
+        this.gatewayRequestRepository = gatewayRequestRepository;
+        this.policyDecisionRepository = policyDecisionRepository;
         this.policyEngine = policyEngine;
         this.auditService = auditService;
     }
@@ -84,5 +95,33 @@ public class PolicyService {
         PolicyEvaluationContext ctx = new PolicyEvaluationContext(agent, tool, request.actionCategory(),
                 request.targetEnvironment(), request.payloadSizeBytes(), 0);
         return policyEngine.evaluateRequest(ctx);
+    }
+
+    /**
+     * Replays a historical gateway request's facts against the live policy engine (including any
+     * policy overrides in force right now) without touching the downstream tool or persisting
+     * anything — lets an operator see whether a policy change would have altered a past decision.
+     */
+    public ReplayResponse replay(Long gatewayRequestId) {
+        GatewayRequest gatewayRequest = gatewayRequestRepository.findById(gatewayRequestId)
+                .orElseThrow(() -> new ResourceNotFoundException("gateway request " + gatewayRequestId + " not found"));
+        if (gatewayRequest.getTool() == null) {
+            throw new ValidationException(
+                    "gateway request " + gatewayRequestId + " has no resolved tool and cannot be replayed");
+        }
+
+        int payloadSizeBytes = gatewayRequest.getRequestBodyJson() == null
+                ? 0
+                : gatewayRequest.getRequestBodyJson().getBytes(StandardCharsets.UTF_8).length;
+        PolicyEvaluationContext ctx = new PolicyEvaluationContext(gatewayRequest.getAgent(), gatewayRequest.getTool(),
+                gatewayRequest.getActionCategory(), gatewayRequest.getTargetEnvironment(), payloadSizeBytes, 0);
+        PolicyOutcome simulated = policyEngine.evaluateRequest(ctx);
+
+        var original = policyDecisionRepository.findTopByGatewayRequestIdOrderByCreatedAtDesc(gatewayRequestId);
+        var originalDecision = original.map(PolicyDecision::getDecision).orElse(null);
+        var originalReason = original.map(PolicyDecision::getReason).orElse(null);
+
+        return new ReplayResponse(gatewayRequestId, originalDecision, originalReason, simulated.decision(),
+                simulated.reason(), simulated.ruleId(), !Objects.equals(originalDecision, simulated.decision()));
     }
 }

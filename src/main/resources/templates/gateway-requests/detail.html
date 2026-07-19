@@ -68,7 +68,21 @@
     </div>
 
     <p class="mt-3"><a th:href="@{'/audit/correlation/' + ${request.correlationId}}">View full audit timeline &rarr;</a></p>
+
+    <div class="card mt-3" th:if="${request.tool != null}" th:attr="data-gateway-request-id=${request.id}">
+        <div class="card-header">Policy simulation &amp; replay lab</div>
+        <div class="card-body">
+            <p class="text-secondary small mb-2">
+                Re-evaluates this request's facts against the live policy engine (including any
+                policy overrides in force right now) without calling the downstream tool or
+                changing anything.
+            </p>
+            <button type="button" id="simulateBtn" class="btn btn-outline-primary btn-sm">Simulate against current policy</button>
+            <div id="simulateResult" class="mt-3 d-none"></div>
+        </div>
+    </div>
 </main>
 <div th:replace="~{layout/fragments :: scripts}"></div>
+<script th:src="@{/js/gateway-requests.js}"></script>
 </body>
 </html>

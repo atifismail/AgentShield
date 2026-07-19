@@ -173,10 +173,15 @@ no call — regardless of whether the target MCP server itself requires OAuth.
 | POST | `/api/policies/{id}/enable` | ADMIN / SECURITY_ANALYST | Enable a version (disables sibling versions of the same name) |
 | POST | `/api/policies/{id}/disable` | ADMIN / SECURITY_ANALYST | Disable a version |
 | POST | `/api/policies/dry-run` | ADMIN / SECURITY_ANALYST | Evaluate a hypothetical request against the live default rules, no persistence |
+| GET | `/api/policies/replay/{gatewayRequestId}` | ADMIN / SECURITY_ANALYST | Replay a historical gateway request's facts against the live rules + current overrides; shows original vs simulated decision, never calls the tool |
 
 The stored `rule_json` on a policy version is versioned metadata for review/rollback. The rules
 that actually execute are the fixed default rules in `PolicyEngine`, plus any policy overrides
-below — see `docs/policy-guide.md`.
+below — see `docs/policy-guide.md`. The replay endpoint therefore simulates against the live rules
++ current overrides, not against a stored draft `rule_json` version (the engine doesn't consume
+that field at runtime yet, so "draft policy" replay is out of scope for this release — see
+`improvement_plan.md`). There's also a "Simulate against current policy" button on each gateway
+request's detail page (`/gateway-requests/{id}`).
 
 ## Policy overrides — `/api/policy-overrides`
 

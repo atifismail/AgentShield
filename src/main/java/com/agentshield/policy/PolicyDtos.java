@@ -44,4 +44,22 @@ public final class PolicyDtos {
             return new DryRunResponse(outcome.decision(), outcome.reason(), outcome.ruleId());
         }
     }
+
+    /**
+     * Policy simulation/replay lab (improvement_plan.md P3): re-evaluates a historical gateway
+     * request's facts (agent, tool, action category, target environment, payload size) against
+     * the live policy engine — including any policy overrides in force right now — without
+     * touching the downstream tool or persisting anything. Shows what would happen today versus
+     * what actually happened at the time.
+     */
+    public record ReplayResponse(
+            Long gatewayRequestId,
+            PolicyDecisionType originalDecision,
+            String originalReason,
+            PolicyDecisionType simulatedDecision,
+            String simulatedReason,
+            String simulatedRuleId,
+            boolean decisionChanged
+    ) {
+    }
 }
