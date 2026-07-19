@@ -27,6 +27,7 @@ Thumbs.db
 PROJECT_PLAN.md
 AGENTS.md
 improvement_plan.md
+design-*.md
 
 # Local tooling config, not part of the project
 .claude/
