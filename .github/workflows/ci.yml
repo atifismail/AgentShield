@@ -25,7 +25,7 @@ jobs:
           java-version: '21'
 
       - name: Set up Gradle
-        uses: gradle/actions/setup-gradle@v4
+        uses: gradle/actions/setup-gradle@v6
 
       # Integration tests run against a real MariaDB via Testcontainers (singleton container
       # pattern, see AbstractIntegrationTest) — ubuntu-latest runners ship Docker preinstalled,
@@ -62,7 +62,7 @@ jobs:
           languages: java-kotlin
 
       - name: Set up Gradle
-        uses: gradle/actions/setup-gradle@v4
+        uses: gradle/actions/setup-gradle@v6
 
       # -x test: CodeQL only needs a successful compile to build its analysis database; the full
       # suite (including Testcontainers-backed integration tests) already runs in build-and-test.
