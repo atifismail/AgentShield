@@ -1,0 +1,107 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  build-and-test:
+    name: Build and test
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      # Integration tests run against a real MariaDB via Testcontainers (singleton container
+      # pattern, see AbstractIntegrationTest) — ubuntu-latest runners ship Docker preinstalled,
+      # so no extra service container setup is needed here.
+      - name: Build and run full test suite
+        run: ./gradlew build
+
+      - name: Upload test reports
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-reports
+          path: build/reports/tests/test
+          retention-days: 14
+
+  codeql:
+    name: CodeQL (SAST)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v3
+        with:
+          languages: java-kotlin
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      # -x test: CodeQL only needs a successful compile to build its analysis database; the full
+      # suite (including Testcontainers-backed integration tests) already runs in build-and-test.
+      - name: Build for CodeQL
+        run: ./gradlew compileJava compileTestJava -x test
+
+      - name: Perform CodeQL analysis
+        uses: github/codeql-action/analyze@v3
+        with:
+          category: /language:java-kotlin
+
+  container-scan:
+    name: Container image scan (Trivy)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build image
+        run: docker build -t agentshield:ci .
+
+      # Report-only by default (exit-code 0): the base JRE image can carry OS-level CVEs this
+      # project doesn't control the fix timeline for, and failing CI on every upstream advisory
+      # would train reviewers to ignore red builds rather than triage them. Findings are still
+      # uploaded to the repo's Security tab (SARIF) for visibility and tracking. Tighten to
+      # exit-code: '1' for CRITICAL once a documented triage/exception process exists — see
+      # docs/runbooks/README.md.
+      - name: Scan image with Trivy
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          image-ref: agentshield:ci
+          format: sarif
+          output: trivy-results.sarif
+          severity: CRITICAL,HIGH
+          exit-code: '0'
+
+      - name: Upload Trivy results to Security tab
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: trivy-results.sarif

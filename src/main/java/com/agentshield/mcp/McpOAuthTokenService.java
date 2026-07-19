@@ -4,6 +4,7 @@ import com.agentshield.audit.AuditService;
 import com.agentshield.common.ActorType;
 import com.agentshield.common.AuditSeverity;
 import com.agentshield.gateway.OutboundEndpointValidator;
+import com.agentshield.metrics.GatewayMetrics;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.net.http.HttpClient;
@@ -34,20 +35,22 @@ public class McpOAuthTokenService {
     private final JwtClaimsReader claimsReader;
     private final OutboundEndpointValidator outboundEndpointValidator;
     private final AuditService auditService;
+    private final GatewayMetrics metrics;
     private final Environment environment;
     private final ObjectMapper objectMapper;
     private final RestClient restClient;
 
     public McpOAuthTokenService(McpOAuthTokenRepository tokenRepository, McpServerRepository serverRepository,
             McpTokenEncryptor tokenEncryptor, JwtClaimsReader claimsReader,
-            OutboundEndpointValidator outboundEndpointValidator, AuditService auditService, Environment environment,
-            ObjectMapper objectMapper) {
+            OutboundEndpointValidator outboundEndpointValidator, AuditService auditService, GatewayMetrics metrics,
+            Environment environment, ObjectMapper objectMapper) {
         this.tokenRepository = tokenRepository;
         this.serverRepository = serverRepository;
         this.tokenEncryptor = tokenEncryptor;
         this.claimsReader = claimsReader;
         this.outboundEndpointValidator = outboundEndpointValidator;
         this.auditService = auditService;
+        this.metrics = metrics;
         this.environment = environment;
         this.objectMapper = objectMapper;
         HttpClient jdkClient = HttpClient.newBuilder().followRedirects(HttpClient.Redirect.NEVER).build();
@@ -69,7 +72,21 @@ public class McpOAuthTokenService {
         Instant now = Instant.now();
         var cached = tokenRepository.findByMcpServerId(server.getId());
         if (cached.isPresent() && now.isBefore(cached.get().getExpiresAt().minus(REFRESH_SKEW))) {
-            return TokenResult.success(tokenEncryptor.decrypt(cached.get().getAccessTokenEncrypted()));
+            try {
+                return TokenResult.success(tokenEncryptor.decrypt(cached.get().getAccessTokenEncrypted()));
+            } catch (Exception e) {
+                // Cached ciphertext is unreadable under the current key — most likely
+                // agentshield.mcp.oauth-token-encryption-key was rotated since this token was
+                // cached (docs/runbooks/key-token-rotation.md). Fail-closed would be the wrong
+                // call here (AGENTS.md rule 6 is about policy evaluation, not this): the token
+                // itself is just stale/unreadable, not a security decision, so the correct
+                // response is to transparently re-acquire a fresh one rather than surface an
+                // uncaught exception that would otherwise break every call to this MCP server
+                // until an operator noticed and manually intervened.
+                audit(server, "mcp.oauth_token_rejected",
+                        "cached token could not be decrypted (likely an encryption key rotation); re-acquiring");
+                return acquireToken(server);
+            }
         }
         return acquireToken(server);
     }
@@ -257,7 +274,11 @@ public class McpOAuthTokenService {
     }
 
     private void audit(McpServer server, String eventType, String message) {
+        boolean rejected = eventType.endsWith("_rejected");
         auditService.record(null, eventType, ActorType.SYSTEM, "mcp-oauth", null, null,
-                eventType.endsWith("_rejected") ? AuditSeverity.WARNING : AuditSeverity.INFO, message, null);
+                rejected ? AuditSeverity.WARNING : AuditSeverity.INFO, message, null);
+        if (rejected) {
+            metrics.mcpOAuthTokenRejected();
+        }
     }
 }

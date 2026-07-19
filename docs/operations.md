@@ -23,6 +23,13 @@ ones Spring Boot exposes automatically:
 | `agentshield_tool_drift_detected_total` | — | A tool's live fingerprint stopped matching its approved hash |
 | `agentshield_response_blocked_total` | — | A tool response was blocked by the secret/injection scanners |
 | `agentshield_incidents_created_total` | — | An incident record was created |
+| `agentshield_mcp_oauth_token_rejected_total` | — | An OAuth token from an MCP server's authorization server failed validation (wrong audience/issuer/expired/scope) |
+
+**Gauges**
+
+| Name | Meaning |
+|---|---|
+| `agentshield_audit_integrity_valid` | `1` if the last scheduled audit-chain verification (every 30m, `AuditIntegrityService.scheduledVerify`) passed, `0` if it found tampering |
 
 **Timers**
 
@@ -31,6 +38,17 @@ ones Spring Boot exposes automatically:
 | `agentshield_gateway_latency_seconds` | The full `/api/gateway/invoke` call, auth through response |
 | `agentshield_policy_evaluation_latency_seconds` | Request-time and response-time policy evaluation |
 | `agentshield_tool_forward_latency_seconds` | The outbound call to the tool endpoint |
+
+## Monitoring and alerting
+
+`monitoring/prometheus-alerts.yml` is a ready-to-load Prometheus rule file covering the
+production-readiness checklist's alerting requirements against the metrics above: deny spikes,
+blocked responses, tool drift, new incidents, audit integrity failure, MCP OAuth token rejections,
+elevated gateway latency, and requests that don't produce a matching policy decision (a fail-closed
+violation, per AGENTS.md rule 6, that would indicate a real bug). Point your Prometheus server's
+`rule_files` at it, or import it into whatever Alertmanager-compatible tooling you run — it assumes
+a scrape job labeled `job="agentshield"` against `/actuator/prometheus`; adjust the selector if
+yours differs. Every metric it references is emitted unconditionally, no extra config needed.
 
 ## Configuration
 

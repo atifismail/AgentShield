@@ -6,6 +6,16 @@ spring:
     cache: true
 
 server:
+  # The prod profile assumes (and docs/deployment.md requires) a TLS-terminating reverse
+  # proxy/ingress in front of the app — see docs/tls-configuration.md. "framework" tells Spring to
+  # trust X-Forwarded-Proto/X-Forwarded-For/X-Forwarded-Host from the immediate upstream when
+  # building redirect URLs and deciding whether a request is secure; without it, a proxy correctly
+  # terminating TLS still looks like a plain-HTTP request to the app, which can break the Secure
+  # session cookie below and produce http:// redirect URLs behind an https:// proxy. Only safe
+  # because prod is documented as always sitting behind a proxy that overwrites (not merges)
+  # client-supplied X-Forwarded-* headers — exposing this profile directly to untrusted clients
+  # without a proxy in front would let a client spoof "secure" status via those same headers.
+  forward-headers-strategy: framework
   servlet:
     session:
       cookie:

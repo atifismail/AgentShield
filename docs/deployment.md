@@ -118,3 +118,7 @@ psql -h <host> -U agentshield agentshield < agentshield-backup.sql
 ```
 
 Audit and policy-decision writes are append-only from the application's perspective — no in-place mutation of historical rows — so backups taken at any point are consistent for audit purposes.
+
+For a docker-compose environment, `scripts/backup-postgres.sh`/`restore-postgres.sh` wrap the
+equivalent `pg_dump --format=custom`/`pg_restore` commands against the running `postgres` service —
+see `docs/runbooks/disaster-recovery.md` for the full procedure and post-restore checklist.

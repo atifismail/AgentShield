@@ -1,0 +1,120 @@
+# Prometheus alerting rules for AgentShield (docs/operations.md "Monitoring and alerting").
+# Load into your Prometheus server's rule_files config, or import into Alertmanager-compatible
+# tooling. Assumes a scrape job label of job="agentshield" against /actuator/prometheus — adjust
+# the job selector if yours differs.
+#
+# Every metric referenced here is emitted unconditionally by the app (no extra config needed) —
+# see com.agentshield.metrics.GatewayMetrics for the source of truth on names/labels.
+
+groups:
+  - name: agentshield.rules
+    rules:
+      - alert: AgentShieldDenySpike
+        expr: |
+          sum(rate(agentshield_gateway_denied_total{job="agentshield"}[5m])) > 5
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "AgentShield is denying an unusually high rate of gateway requests"
+          description: >-
+            More than 5 denied requests/sec (5m average) on {{ $labels.instance }}. Could be a
+            misconfigured agent/tool, a policy change with unintended reach, or an agent
+            attempting something it shouldn't. Check the Audit page filtered to DENY decisions.
+
+      - alert: AgentShieldResponseBlockedSpike
+        expr: |
+          sum(rate(agentshield_response_blocked_total{job="agentshield"}[15m])) > 0
+        for: 0m
+        labels:
+          severity: warning
+        annotations:
+          summary: "AgentShield blocked a tool response (secret or prompt-injection match)"
+          description: >-
+            {{ $value }} response(s)/sec blocked on {{ $labels.instance }} in the last 15m. Each
+            one also creates an Incident — check the Incidents page for details. Fires on any
+            nonzero rate since even one blocked response is worth a human looking at it.
+
+      - alert: AgentShieldToolDriftDetected
+        expr: |
+          increase(agentshield_tool_drift_detected_total{job="agentshield"}[1h]) > 0
+        labels:
+          severity: info
+        annotations:
+          summary: "A tool's fingerprint changed since it was last approved"
+          description: >-
+            {{ $value }} drift event(s) on {{ $labels.instance }} in the last hour. Review the
+            Tools page — a drifted tool is denied until re-approved, so this is informational
+            unless it's unexpected or the drift diff looks suspicious.
+
+      - alert: AgentShieldIncidentCreated
+        expr: |
+          increase(agentshield_incidents_created_total{job="agentshield"}[15m]) > 0
+        labels:
+          severity: warning
+        annotations:
+          summary: "AgentShield created a new incident"
+          description: >-
+            {{ $value }} new incident(s) on {{ $labels.instance }} in the last 15m — includes both
+            CRITICAL findings (blocked secrets/injections) and WARNING-severity behavior-baseline
+            anomalies. Check the Incidents page.
+
+      - alert: AgentShieldAuditIntegrityFailed
+        expr: |
+          agentshield_audit_integrity_valid{job="agentshield"} == 0
+        for: 0m
+        labels:
+          severity: critical
+        annotations:
+          summary: "AgentShield's tamper-evident audit chain failed verification"
+          description: >-
+            The scheduled integrity check (every 30m, com.agentshield.audit.AuditIntegrityService)
+            found a broken hash chain on {{ $labels.instance }} — this means either a bug or actual
+            tampering with the audit_events table. Treat as a security incident: see
+            docs/runbooks/audit-integrity-verification.md. Also check for a CRITICAL
+            "audit.integrity_check_failed" event in the Audit UI itself (written before the chain
+            broke, if the break is after that point).
+
+      - alert: AgentShieldMcpOAuthTokenRejections
+        expr: |
+          increase(agentshield_mcp_oauth_token_rejected_total{job="agentshield"}[15m]) > 0
+        labels:
+          severity: warning
+        annotations:
+          summary: "AgentShield rejected an OAuth token from an MCP authorization server"
+          description: >-
+            {{ $value }} rejection(s) on {{ $labels.instance }} in the last 15m — wrong
+            audience/issuer, expired, or a narrower-than-requested scope
+            (design-mcp-authorization.md §6.5). Could mean a misconfigured MCP server registration
+            or an authorization server actively misbehaving/compromised. Check Audit for
+            "mcp.oauth_token_rejected" events for the specific reason.
+
+      - alert: AgentShieldGatewayLatencyHigh
+        expr: |
+          histogram_quantile(0.95, sum(rate(agentshield_gateway_latency_seconds_bucket{job="agentshield"}[5m])) by (le)) > 2
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "AgentShield gateway p95 latency is elevated"
+          description: >-
+            p95 gateway latency on {{ $labels.instance }} has been above 2s for 10m. Check
+            downstream tool latency and database connection pool saturation before assuming a
+            code-level regression.
+
+      - alert: AgentShieldPolicyEvaluationFailedClosed
+        expr: |
+          increase(agentshield_gateway_decisions_total{job="agentshield",decision="DENY"}[5m]) > 0
+          and on(instance)
+          increase(agentshield_gateway_requests_total{job="agentshield"}[5m]) - increase(agentshield_gateway_decisions_total{job="agentshield"}[5m]) > 0
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Gateway requests are not producing a matching policy decision"
+          description: >-
+            requests_total is growing faster than decisions_total on {{ $labels.instance }} —
+            every accepted request should record exactly one decision (AGENTS.md rule 6, fail
+            closed on any policy-evaluation exception). A persistent gap suggests requests are
+            failing before evaluation completes; check application logs for exceptions in
+            GatewayService.doInvoke.

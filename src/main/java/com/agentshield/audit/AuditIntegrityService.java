@@ -1,6 +1,10 @@
 package com.agentshield.audit;
 
+import com.agentshield.common.ActorType;
+import com.agentshield.common.AuditSeverity;
+import com.agentshield.metrics.GatewayMetrics;
 import java.util.List;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
 /**
@@ -13,9 +17,35 @@ import org.springframework.stereotype.Service;
 public class AuditIntegrityService {
 
     private final AuditEventRepository repository;
+    private final AuditService auditService;
+    private final GatewayMetrics metrics;
 
-    public AuditIntegrityService(AuditEventRepository repository) {
+    public AuditIntegrityService(AuditEventRepository repository, AuditService auditService, GatewayMetrics metrics) {
         this.repository = repository;
+        this.auditService = auditService;
+        this.metrics = metrics;
+    }
+
+    /**
+     * Background check backing the {@code agentshield_audit_integrity_valid} gauge
+     * (docs/operations.md "Monitoring and alerting") — the on-demand
+     * {@code GET /api/audit/verify-integrity} endpoint stays the authoritative, immediate check;
+     * this just means a broken chain gets noticed and alerted on even if nobody happens to click
+     * "Verify Integrity" that day. Re-scans the whole chain each run (same cost as the manual
+     * endpoint) — fine at this product's scale; if the audit table grows large enough for that to
+     * matter, this is the place to add checkpointing.
+     */
+    @Scheduled(fixedDelayString = "PT30M")
+    public void scheduledVerify() {
+        VerificationResult result = verifyChain();
+        metrics.setAuditIntegrityValid(result.valid());
+        if (!result.valid()) {
+            auditService.record(null, "audit.integrity_check_failed", ActorType.SYSTEM, "audit-integrity-monitor",
+                    null, null, AuditSeverity.CRITICAL,
+                    "scheduled audit chain verification found tampering at event " + result.firstBrokenEventId()
+                            + ": " + result.reason(),
+                    null);
+        }
     }
 
     public VerificationResult verifyChain() {

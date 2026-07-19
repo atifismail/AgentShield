@@ -3,6 +3,7 @@ package com.agentshield.metrics;
 import com.agentshield.common.PolicyDecisionType;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Timer;
+import java.util.concurrent.atomic.AtomicInteger;
 import org.springframework.stereotype.Component;
 
 /**
@@ -15,8 +16,21 @@ public class GatewayMetrics {
 
     private final MeterRegistry registry;
 
+    /** 1 = last scheduled chain verification passed, 0 = it found tampering. Starts optimistic;
+     * the first scheduled check (docs/operations.md "Monitoring and alerting") corrects it quickly. */
+    private final AtomicInteger auditIntegrityValid = new AtomicInteger(1);
+
     public GatewayMetrics(MeterRegistry registry) {
         this.registry = registry;
+        registry.gauge("agentshield_audit_integrity_valid", auditIntegrityValid);
+    }
+
+    public void setAuditIntegrityValid(boolean valid) {
+        auditIntegrityValid.set(valid ? 1 : 0);
+    }
+
+    public void mcpOAuthTokenRejected() {
+        registry.counter("agentshield_mcp_oauth_token_rejected_total").increment();
     }
 
     public void requestReceived() {
