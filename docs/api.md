@@ -226,6 +226,20 @@ security audit trail.
 | GET | `/api/incidents/{id}` | Detail — links back to `relatedAuditEventId` / `relatedGatewayRequestId` |
 | PATCH | `/api/incidents/{id}/status` | ADMIN/SECURITY_ANALYST. Body `{"status": "OPEN\|ACKNOWLEDGED\|RESOLVED\|FALSE_POSITIVE"}` |
 
+## Governance evidence export — `/api/governance`
+
+| Method | Path | Role | Notes |
+|---|---|---|---|
+| GET | `/api/governance/report?from=<ISO-8601>&to=<ISO-8601>` | ADMIN / SECURITY_ANALYST | JSON evidence report for the range |
+| GET | `/api/governance/report?format=markdown&from=<ISO-8601>&to=<ISO-8601>` | ADMIN / SECURITY_ANALYST | Same report as a downloadable Markdown file |
+
+Read-only snapshot assembled from existing operational tables — registered agents, approved
+tools, denied actions in range, approval records in range (with approved/rejected/expired
+breakdown), tool drift events in range, incidents opened in range, and the policy versions
+currently in force. Sections are labeled with the NIST AI RMF function they evidence
+(govern/map/measure/manage). `from` must be strictly before `to` or the request is rejected with
+400. There's also an operator-facing form at `/governance`.
+
 ## Error shape
 
 Validation/not-found/conflict/auth errors return:

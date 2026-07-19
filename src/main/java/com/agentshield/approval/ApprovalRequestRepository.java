@@ -2,6 +2,7 @@ package com.agentshield.approval;
 
 import com.agentshield.common.ApprovalStatus;
 import jakarta.persistence.LockModeType;
+import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -17,6 +18,8 @@ public interface ApprovalRequestRepository extends JpaRepository<ApprovalRequest
     Optional<ApprovalRequest> findByGatewayRequestId(Long gatewayRequestId);
 
     List<ApprovalRequest> findAllByOrderByCreatedAtDesc();
+
+    List<ApprovalRequest> findByCreatedAtBetweenOrderByCreatedAtDesc(Instant from, Instant to);
 
     /**
      * Row-level lock held for the rest of the caller's transaction — used by approve()/reject()

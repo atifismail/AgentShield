@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{layout/fragments :: head(title='Governance Evidence Export')}"></head>
+<body>
+<nav th:replace="~{layout/fragments :: navbar}"></nav>
+<main class="container-fluid py-4">
+    <h1 class="h3 mb-1">Governance Evidence Export</h1>
+    <p class="text-secondary">
+        Export a NIST AI RMF-mapped evidence report (registered agents, approved tools, denied
+        actions, approval records, tool drift events, incidents, and policy versions) for a date
+        range. Requires the Admin or Security Analyst role.
+    </p>
+
+    <div id="alertHost"></div>
+
+    <div class="card" style="max-width: 32rem;">
+        <div class="card-body">
+            <div class="mb-3">
+                <label class="form-label" for="fromInput">From</label>
+                <input type="datetime-local" id="fromInput" class="form-control">
+            </div>
+            <div class="mb-3">
+                <label class="form-label" for="toInput">To</label>
+                <input type="datetime-local" id="toInput" class="form-control">
+            </div>
+            <div class="btn-group">
+                <button type="button" id="viewJsonBtn" class="btn btn-primary">View JSON</button>
+                <button type="button" id="downloadMarkdownBtn" class="btn btn-outline-primary">Download Markdown</button>
+            </div>
+        </div>
+    </div>
+</main>
+<div th:replace="~{layout/fragments :: scripts}"></div>
+<script th:src="@{/js/governance.js}"></script>
+</body>
+</html>
