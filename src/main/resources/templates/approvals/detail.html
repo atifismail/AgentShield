@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{layout/fragments :: head(title='Approval detail')}"></head>
+<body>
+<nav th:replace="~{layout/fragments :: navbar}"></nav>
+<main class="container-fluid py-4" th:attr="data-approval-id=${approval.id}">
+    <p><a th:href="@{/approvals}">&larr; Back to approvals</a></p>
+    <h1 class="h3 mb-1">
+        <span th:text="${request.actionName}">deleteRecords</span> on
+        <span th:text="${request.tool != null ? request.tool.name : '(unregistered)'}">tool</span>
+    </h1>
+    <p><span class="badge" th:classappend="'status-badge-' + ${#strings.toLowerCase(approval.status)}" th:text="${approval.status}">PENDING</span></p>
+
+    <div class="alert alert-warning" th:if="${approval.status.name() == 'PENDING'}">
+        <strong>Approving executes this tool call immediately</strong> against the live tool. This cannot be undone by AgentShield.
+    </div>
+
+    <div class="row g-3">
+        <div class="col-lg-6">
+            <div class="card">
+                <div class="card-header">Requester &amp; task context</div>
+                <ul class="list-group list-group-flush">
+                    <li class="list-group-item"><strong>Requested by (user/task):</strong> <span th:text="${request.userId != null ? request.userId : '(not supplied)'}">-</span></li>
+                    <li class="list-group-item"><strong>Assigned to:</strong> <span th:text="${approval.assignedTo != null ? approval.assignedTo : '(unassigned)'}">-</span></li>
+                    <li class="list-group-item"><strong>Requested at:</strong> <span th:text="${#temporals.format(approval.createdAt, 'yyyy-MM-dd HH:mm:ss')}">-</span></li>
+                    <li class="list-group-item"><strong>Expires at:</strong> <span th:text="${approval.expiresAt != null ? #temporals.format(approval.expiresAt, 'yyyy-MM-dd HH:mm:ss') : '(no expiry)'}">-</span></li>
+                    <li class="list-group-item"><strong>Approval reason:</strong> <span th:text="${approval.reason}">reason</span></li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="col-lg-6">
+            <div class="card">
+                <div class="card-header">Agent identity</div>
+                <ul class="list-group list-group-flush">
+                    <li class="list-group-item"><strong>Agent:</strong> <a th:href="@{'/agents/' + ${request.agent.id}}" th:text="${request.agent.name}">agent-01</a></li>
+                    <li class="list-group-item"><strong>Credential prefix:</strong> <code th:text="${credentialPrefix != null ? credentialPrefix : '(no active credential)'}">tok_abc1</code></li>
+                    <li class="list-group-item"><strong>Allowed tool groups:</strong> <span th:text="${request.agent.allowedToolGroups}">database</span></li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="col-lg-6">
+            <div class="card">
+                <div class="card-header">Tool &amp; action</div>
+                <ul class="list-group list-group-flush">
+                    <li class="list-group-item"><strong>Tool:</strong> <span th:text="${request.tool != null ? request.tool.name : '(unregistered)'}">mock-database</span></li>
+                    <li class="list-group-item"><strong>Tool group:</strong> <span th:text="${request.tool != null ? request.tool.toolGroup : '-'}">database</span></li>
+                    <li class="list-group-item"><strong>Action category:</strong> <span th:text="${request.actionCategory}">WRITE</span></li>
+                    <li class="list-group-item"><strong>Target environment:</strong> <span th:text="${request.targetEnvironment}">PROD</span></li>
+                    <li class="list-group-item"><strong>Request summary:</strong> <code th:text="${request.requestSummary}">{...}</code></li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="col-lg-6">
+            <div class="card">
+                <div class="card-header">Policy reason &amp; risk score</div>
+                <div class="card-body" th:if="${policyDecision != null}">
+                    <p><span class="badge" th:text="${policyDecision.decision}">APPROVAL_REQUIRED</span>
+                        <span class="badge" th:text="${policyDecision.riskLevel}">HIGH</span>
+                        risk score <strong th:text="${policyDecision.riskScore}">70</strong></p>
+                    <p th:text="${policyDecision.reason}">reason</p>
+                    <p class="text-secondary small" th:if="${policyDecision.policyVersion}">Policy version: <span th:text="${policyDecision.policyVersion}"></span></p>
+                </div>
+                <div class="card-body text-secondary" th:if="${policyDecision == null}">No policy decision recorded yet.</div>
+            </div>
+        </div>
+
+        <div class="col-lg-6" th:if="${toolResponse != null}">
+            <div class="card">
+                <div class="card-header">Detector findings (prior execution on this request)</div>
+                <div class="card-body">
+                    <p>Blocked: <span th:text="${toolResponse.blocked}">false</span></p>
+                    <p th:if="${toolResponse.blockReason}">Block reason: <span th:text="${toolResponse.blockReason}"></span></p>
+                    <p th:if="${toolResponse.detectorMatchesJson}">Detector matches: <code th:text="${toolResponse.detectorMatchesJson}">[]</code></p>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-6">
+            <div class="card">
+                <div class="card-header">Recent calls by this agent</div>
+                <div class="card-body p-0">
+                    <table class="table table-sm mb-0" th:if="${!priorCalls.isEmpty()}">
+                        <thead>
+                        <tr><th>When</th><th>Tool</th><th>Action</th><th>Environment</th></tr>
+                        </thead>
+                        <tbody>
+                        <tr th:each="c : ${priorCalls}">
+                            <td><a th:href="@{'/gateway-requests/' + ${c.id}}" th:text="${#temporals.format(c.createdAt, 'yyyy-MM-dd HH:mm')}">-</a></td>
+                            <td th:text="${c.tool != null ? c.tool.name : '-'}">tool</td>
+                            <td th:text="${c.actionName}">action</td>
+                            <td th:text="${c.targetEnvironment}">DEV</td>
+                        </tr>
+                        </tbody>
+                    </table>
+                    <p class="card-body text-secondary mb-0" th:if="${priorCalls.isEmpty()}">No prior calls recorded for this agent.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="btn-group mt-3" th:if="${approval.status.name() == 'PENDING'}">
+        <button type="button" class="btn btn-success btn-approve">Approve &amp; execute now</button>
+        <button type="button" class="btn btn-outline-danger btn-reject">Reject</button>
+    </div>
+
+    <p class="mt-3" th:if="${approval.status.name() != 'PENDING'}">
+        <span th:if="${approval.approvedBy}">Approved by <strong th:text="${approval.approvedBy}"></strong> at <span th:text="${#temporals.format(approval.approvedAt, 'yyyy-MM-dd HH:mm')}"></span></span>
+        <span th:if="${approval.rejectedBy}">Rejected by <strong th:text="${approval.rejectedBy}"></strong> at <span th:text="${#temporals.format(approval.rejectedAt, 'yyyy-MM-dd HH:mm')}"></span></span>
+    </p>
+
+    <p class="mt-3"><a th:href="@{'/gateway-requests/' + ${request.id}}">View full gateway request detail &rarr;</a></p>
+</main>
+<div th:replace="~{layout/fragments :: scripts}"></div>
+<script th:src="@{/js/approvals.js}"></script>
+</body>
+</html>

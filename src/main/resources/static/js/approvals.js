@@ -1,6 +1,6 @@
 $(function () {
-    $('table').on('click', '.btn-approve, .btn-reject', function () {
-        var id = $(this).closest('tr').data('approval-id');
+    $(document).on('click', '.btn-approve, .btn-reject', function () {
+        var id = $(this).closest('[data-approval-id]').data('approval-id');
         var action = $(this).hasClass('btn-approve') ? 'approve' : 'reject';
         $.ajax({
             url: '/api/approvals/' + id + '/' + action, method: 'POST', contentType: 'application/json',

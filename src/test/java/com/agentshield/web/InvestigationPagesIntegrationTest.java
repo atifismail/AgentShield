@@ -165,4 +165,64 @@ class InvestigationPagesIntegrationTest extends AbstractIntegrationTest {
         assertThat(response.getBody()).contains("Drift diff");
         assertThat(response.getBody()).contains("changed description");
     }
+
+    @Test
+    void approvalDetailPageShowsFullDecisionContext() {
+        String plaintextToken = "test-token-" + System.nanoTime();
+        Agent agent = new Agent();
+        agent.setName("it-agent-" + System.nanoTime());
+        agent.setStatus(AgentStatus.ENABLED);
+        agent.setAllowedToolGroups("database");
+        agent = agentRepository.save(agent);
+
+        AgentCredential credential = new AgentCredential();
+        credential.setAgent(agent);
+        credential.setTokenHash(TokenHasher.sha256Hex(plaintextToken));
+        credential.setTokenPrefix(plaintextToken.substring(0, 8));
+        credential.setStatus(CredentialStatus.ACTIVE);
+        agentCredentialRepository.save(credential);
+
+        Tool tool = new Tool();
+        tool.setName("it-tool-" + System.nanoTime());
+        tool.setType(ToolType.DATABASE);
+        tool.setToolGroup("database");
+        tool.setEndpointUrl("http://localhost:" + port + "/demo/mock-tool/echo");
+        tool.setApprovalStatus(ToolApprovalStatus.APPROVED);
+        tool.setApprovedHash("h");
+        tool.setCurrentHash("h");
+        tool = toolRepository.save(tool);
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON);
+        headers.set(HttpHeaders.AUTHORIZATION, "Bearer " + plaintextToken);
+        TestRestTemplate anon = new TestRestTemplate();
+
+        ObjectNode priorCallBody = objectMapper.createObjectNode();
+        priorCallBody.put("toolId", tool.getName());
+        priorCallBody.put("action", "lookupRecords");
+        priorCallBody.put("actionCategory", ActionCategory.READ.name());
+        priorCallBody.put("targetEnvironment", "DEV");
+        priorCallBody.set("input", objectMapper.createObjectNode().put("key", "value"));
+        anon.postForEntity("http://localhost:" + port + "/api/gateway/invoke", new HttpEntity<>(priorCallBody, headers), String.class);
+
+        ObjectNode approvalCallBody = objectMapper.createObjectNode();
+        approvalCallBody.put("toolId", tool.getName());
+        approvalCallBody.put("action", "deleteRecords");
+        approvalCallBody.put("actionCategory", ActionCategory.WRITE.name());
+        approvalCallBody.put("targetEnvironment", "PROD");
+        approvalCallBody.set("input", objectMapper.createObjectNode().put("table", "users"));
+        approvalCallBody.set("context", objectMapper.createObjectNode().put("userId", "alice-analyst"));
+        var invokeResponse = anon.postForEntity("http://localhost:" + port + "/api/gateway/invoke",
+                new HttpEntity<>(approvalCallBody, headers), com.agentshield.gateway.GatewayDtos.InvokeResponse.class);
+        Long approvalId = invokeResponse.getBody().approvalRequestId();
+        assertThat(approvalId).isNotNull();
+
+        var response = admin.getForEntity("http://localhost:" + port + "/approvals/" + approvalId, String.class);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(response.getBody()).contains("Approving executes this tool call immediately");
+        assertThat(response.getBody()).contains(credential.getTokenPrefix());
+        assertThat(response.getBody()).contains("alice-analyst");
+        assertThat(response.getBody()).contains("lookupRecords");
+    }
 }

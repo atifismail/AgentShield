@@ -39,9 +39,10 @@
                     <td th:text="${a.reason}">reason</td>
                     <td><span class="badge" th:classappend="'status-badge-' + ${#strings.toLowerCase(a.status)}" th:text="${a.status}">PENDING</span></td>
                     <td>
-                        <div class="btn-group btn-group-sm" th:if="${a.status.name() == 'PENDING'}">
-                            <button type="button" class="btn btn-outline-success btn-approve">Approve</button>
-                            <button type="button" class="btn btn-outline-danger btn-reject">Reject</button>
+                        <div class="btn-group btn-group-sm">
+                            <a th:href="@{'/approvals/' + ${a.id}}" class="btn btn-outline-secondary">Details</a>
+                            <button type="button" class="btn btn-outline-success btn-approve" th:if="${a.status.name() == 'PENDING'}">Approve</button>
+                            <button type="button" class="btn btn-outline-danger btn-reject" th:if="${a.status.name() == 'PENDING'}">Reject</button>
                         </div>
                     </td>
                 </tr>
