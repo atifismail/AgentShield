@@ -16,7 +16,13 @@ public final class McpDtos {
             String endpointUrl,
             String command,
             String args,
-            String envRef,
+            /**
+             * STDIO transport only: comma-separated environment variable NAMES to allow through to
+             * the subprocess, never values. Empty by default — nothing is passed through
+             * automatically. HOME/USERPROFILE may be listed but are sensitive; see
+             * docs/operations.md.
+             */
+            String stdioEnvAllowlist,
             String owner,
             String environment,
             String toolGroup
@@ -40,6 +46,9 @@ public final class McpDtos {
             String name,
             McpTransportType transportType,
             String endpointUrl,
+            String command,
+            String args,
+            String stdioEnvAllowlist,
             String owner,
             String environment,
             String toolGroup,
@@ -55,10 +64,15 @@ public final class McpDtos {
     ) {
         public static McpServerResponse from(McpServer s) {
             return new McpServerResponse(s.getId(), s.getName(), s.getTransportType(), s.getEndpointUrl(),
-                    s.getOwner(), s.getEnvironment(), s.getToolGroup(), s.getDiscoveredToolsHash(),
-                    s.getLastDiscoveredAt(), s.getCreatedAt(), s.getAuthMode(), s.getOauthIssuer(),
-                    s.getOauthResource(), s.getOauthClientId(), s.getOauthClientSecretRef(), s.getOauthScopes());
+                    s.getCommand(), s.getArgs(), s.getStdioEnvAllowlist(), s.getOwner(), s.getEnvironment(),
+                    s.getToolGroup(), s.getDiscoveredToolsHash(), s.getLastDiscoveredAt(), s.getCreatedAt(),
+                    s.getAuthMode(), s.getOauthIssuer(), s.getOauthResource(), s.getOauthClientId(),
+                    s.getOauthClientSecretRef(), s.getOauthScopes());
         }
+    }
+
+    /** Runtime (in-memory, not persisted) status of a STDIO transport server's managed subprocess. */
+    public record StdioStatusResponse(boolean running, Long pid, Instant startedAt, Instant lastActivityAt) {
     }
 
     public record DiscoveryResponse(List<String> discoveredOrUpdatedTools, List<String> removedTools) {

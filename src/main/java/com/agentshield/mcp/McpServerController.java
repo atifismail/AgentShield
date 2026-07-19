@@ -1,8 +1,10 @@
 package com.agentshield.mcp;
 
+import com.agentshield.common.ValidationException;
 import com.agentshield.mcp.McpDtos.DiscoveryResponse;
 import com.agentshield.mcp.McpDtos.McpServerResponse;
 import com.agentshield.mcp.McpDtos.RegisterMcpServerRequest;
+import com.agentshield.mcp.McpDtos.StdioStatusResponse;
 import com.agentshield.mcp.McpDtos.UpdateMcpAuthRequest;
 import com.agentshield.tool.Tool;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -24,9 +26,11 @@ import org.springframework.web.bind.annotation.RestController;
 public class McpServerController {
 
     private final McpDiscoveryService discoveryService;
+    private final StdioMcpProcessManager stdioProcessManager;
 
-    public McpServerController(McpDiscoveryService discoveryService) {
+    public McpServerController(McpDiscoveryService discoveryService, StdioMcpProcessManager stdioProcessManager) {
         this.discoveryService = discoveryService;
+        this.stdioProcessManager = stdioProcessManager;
     }
 
     @PostMapping
@@ -56,5 +60,28 @@ public class McpServerController {
         return new DiscoveryResponse(
                 result.discoveredOrUpdated().stream().map(Tool::getName).toList(),
                 result.removed().stream().map(Tool::getName).toList());
+    }
+
+    @GetMapping("/{id}/stdio/status")
+    public StdioStatusResponse stdioStatus(@PathVariable Long id) {
+        McpServer server = discoveryService.get(id);
+        return stdioProcessManager.status(server.getId());
+    }
+
+    @PostMapping("/{id}/stdio/start")
+    public StdioStatusResponse stdioStart(@PathVariable Long id) {
+        McpServer server = discoveryService.get(id);
+        var result = stdioProcessManager.start(server);
+        if (!result.success()) {
+            throw new ValidationException(result.errorMessage());
+        }
+        return stdioProcessManager.status(server.getId());
+    }
+
+    @PostMapping("/{id}/stdio/stop")
+    public StdioStatusResponse stdioStop(@PathVariable Long id) {
+        McpServer server = discoveryService.get(id);
+        stdioProcessManager.stop(server);
+        return stdioProcessManager.status(server.getId());
     }
 }

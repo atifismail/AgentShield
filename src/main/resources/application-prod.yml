@@ -38,3 +38,10 @@ agentshield:
       # allowlist are reachable, full stop — no "any public host that doesn't resolve to a
       # private range" fallback like the default profile allows.
       deny-all-unless-allowed: true
+  # If enabling stdio MCP transport in production (AGENTSHIELD_STDIO_ENABLED=true), the app
+  # refuses to start unless AGENTSHIELD_STDIO_EXTERNAL_SANDBOX_ACKNOWLEDGED=true is also set,
+  # confirming subprocess isolation (network egress, resource limits) is enforced externally —
+  # see docs/operations.md and design-stdio-sse-mcp-transport-and-sandboxing.md §6a/§14.
+  stdio:
+    enabled: ${AGENTSHIELD_STDIO_ENABLED:false}
+    external-sandbox-acknowledged: ${AGENTSHIELD_STDIO_EXTERNAL_SANDBOX_ACKNOWLEDGED:false}

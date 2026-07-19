@@ -37,17 +37,24 @@ public class McpDiscoveryService {
     private final McpJsonRpcClient rpcClient;
     private final McpOAuthTokenService oauthTokenService;
     private final OutboundEndpointValidator outboundEndpointValidator;
+    private final StdioCommandValidator stdioCommandValidator;
+    private final StdioMcpProcessManager stdioProcessManager;
+    private final StdioMcpProperties stdioProperties;
     private final AuditService auditService;
 
     public McpDiscoveryService(McpServerRepository serverRepository, ToolRepository toolRepository,
             ToolService toolService, McpJsonRpcClient rpcClient, McpOAuthTokenService oauthTokenService,
-            OutboundEndpointValidator outboundEndpointValidator, AuditService auditService) {
+            OutboundEndpointValidator outboundEndpointValidator, StdioCommandValidator stdioCommandValidator,
+            StdioMcpProcessManager stdioProcessManager, StdioMcpProperties stdioProperties, AuditService auditService) {
         this.serverRepository = serverRepository;
         this.toolRepository = toolRepository;
         this.toolService = toolService;
         this.rpcClient = rpcClient;
         this.oauthTokenService = oauthTokenService;
         this.outboundEndpointValidator = outboundEndpointValidator;
+        this.stdioCommandValidator = stdioCommandValidator;
+        this.stdioProcessManager = stdioProcessManager;
+        this.stdioProperties = stdioProperties;
         this.auditService = auditService;
     }
 
@@ -62,13 +69,23 @@ public class McpDiscoveryService {
                 throw new ValidationException("endpoint URL rejected by outbound policy: " + validation.reason());
             }
         }
+        if (request.transportType() == McpTransportType.STDIO) {
+            if (!stdioProperties.isEnabled()) {
+                throw new ValidationException(
+                        "stdio transport is disabled (agentshield.stdio.enabled=false); a STDIO server cannot be registered");
+            }
+            var commandValidation = stdioCommandValidator.validate(request.command());
+            if (!commandValidation.allowed()) {
+                throw new ValidationException("stdio command rejected: " + commandValidation.reason());
+            }
+        }
         McpServer server = new McpServer();
         server.setName(request.name());
         server.setTransportType(request.transportType());
         server.setEndpointUrl(request.endpointUrl());
         server.setCommand(request.command());
         server.setArgs(request.args());
-        server.setEnvRef(request.envRef());
+        server.setStdioEnvAllowlist(request.stdioEnvAllowlist());
         server.setOwner(request.owner());
         server.setEnvironment(request.environment());
         server.setToolGroup(request.toolGroup() == null || request.toolGroup().isBlank() ? "default" : request.toolGroup());
@@ -120,23 +137,13 @@ public class McpDiscoveryService {
     @Transactional
     public DiscoveryResult discover(Long serverId) {
         McpServer server = get(serverId);
-        if (server.getTransportType() != McpTransportType.HTTP) {
+        if (server.getTransportType() != McpTransportType.HTTP && server.getTransportType() != McpTransportType.STDIO) {
             throw new ValidationException(
-                    "discovery for transport " + server.getTransportType() + " is not implemented yet; only HTTP is supported");
+                    "discovery for transport " + server.getTransportType()
+                            + " is not implemented yet; only HTTP and STDIO are supported");
         }
 
-        String bearerToken = null;
-        if (server.getAuthMode() == McpAuthMode.OAUTH2) {
-            var tokenResult = oauthTokenService.getValidToken(server);
-            if (!tokenResult.success()) {
-                throw new ValidationException(
-                        "could not obtain an OAuth token for MCP server '" + server.getName() + "': "
-                                + tokenResult.errorMessage());
-            }
-            bearerToken = tokenResult.accessToken();
-        }
-
-        var rpcResult = rpcClient.call(server.getEndpointUrl(), "tools/list", null, bearerToken);
+        var rpcResult = callRpc(server, "tools/list", null);
         if (!rpcResult.success()) {
             auditService.record(null, "mcp.discovery_failed", ActorType.SYSTEM, "mcp-discovery", null, null,
                     AuditSeverity.WARNING, "discovery failed for MCP server '" + server.getName() + "': "
@@ -189,6 +196,25 @@ public class McpDiscoveryService {
                         + removed.size() + " removed", null);
 
         return new DiscoveryResult(upserted, removed);
+    }
+
+    /** Dispatches a JSON-RPC call by transport — STDIO goes through the sandboxed process manager, HTTP through {@link McpJsonRpcClient}. */
+    private McpJsonRpcClient.McpRpcResult callRpc(McpServer server, String method, JsonNode params) {
+        if (server.getTransportType() == McpTransportType.STDIO) {
+            var result = stdioProcessManager.call(server, method, params);
+            return result.success() ? McpJsonRpcClient.McpRpcResult.success(result.result())
+                    : McpJsonRpcClient.McpRpcResult.error(result.errorMessage());
+        }
+        String bearerToken = null;
+        if (server.getAuthMode() == McpAuthMode.OAUTH2) {
+            var tokenResult = oauthTokenService.getValidToken(server);
+            if (!tokenResult.success()) {
+                return McpJsonRpcClient.McpRpcResult.error("could not obtain an OAuth token for MCP server '"
+                        + server.getName() + "': " + tokenResult.errorMessage());
+            }
+            bearerToken = tokenResult.accessToken();
+        }
+        return rpcClient.call(server.getEndpointUrl(), method, params, bearerToken);
     }
 
     public record DiscoveryResult(List<Tool> discoveredOrUpdated, List<Tool> removed) {

@@ -116,15 +116,34 @@ bundled demo tools) are always exempt, regardless of policy.
 
 | Method | Path | Role | Notes |
 |---|---|---|---|
-| POST | `/api/mcp-servers` | any authenticated | Register an MCP server: `{name, transportType, endpointUrl, owner, environment, toolGroup}` |
+| POST | `/api/mcp-servers` | any authenticated | Register an MCP server: `{name, transportType, endpointUrl, command, args, stdioEnvAllowlist, owner, environment, toolGroup}` |
 | GET | `/api/mcp-servers` | any authenticated | List servers |
 | GET | `/api/mcp-servers/{id}` | any authenticated | Get one server |
 | PATCH | `/api/mcp-servers/{id}/auth` | ADMIN | Set how AgentShield authenticates itself to this server: `{authMode: "NONE"\|"OAUTH2"\|"STDIO_ENV", oauthIssuer, oauthResource, oauthTokenEndpoint, oauthClientId, oauthClientSecretRef, oauthScopes}` |
 | POST | `/api/mcp-servers/{id}/discover` | any authenticated | Call `tools/list` and sync the result into the regular tool registry |
+| GET | `/api/mcp-servers/{id}/stdio/status` | ADMIN / SECURITY_ANALYST | `{running, pid, startedAt, lastActivityAt}` — in-memory runtime state, not persisted |
+| POST | `/api/mcp-servers/{id}/stdio/start` | ADMIN | Eagerly spawn the sandboxed subprocess now, instead of waiting for first use |
+| POST | `/api/mcp-servers/{id}/stdio/stop` | ADMIN | Force-stop it (e.g. suspected compromise) |
 
-Only `transportType: "HTTP"` is actually implemented — `SSE` and `STDIO` can be registered (the
-schema supports them) but discovery/invocation for them returns a clear "not implemented yet"
-error rather than pretending to work.
+`transportType: "HTTP"` and `"STDIO"` are implemented — `SSE` can be registered (the schema
+supports it) but discovery/invocation for it returns a clear "not implemented yet" error rather
+than pretending to work.
+
+**`STDIO` transport is gated behind `agentshield.stdio.enabled` (default `false`)** — registering
+or invoking a stdio server while disabled fails closed. It spawns a locally-sandboxed subprocess
+per `design-stdio-sse-mcp-transport-and-sandboxing.md`: the executable must be on
+`agentshield.stdio.allowed-commands` (empty by default — nothing is spawnable until an operator
+allowlists it), its environment is built from scratch and contains **nothing** from AgentShield's
+own process unless a name is explicitly listed in `stdioEnvAllowlist` (comma-separated names,
+never values — `HOME`/`USERPROFILE` are treated the same as any other name but are documented as
+sensitive; see `docs/operations.md`), and calls are bounded by
+`agentshield.stdio.call-timeout-seconds`/`max-output-bytes`/`max-concurrent-processes`. Every
+process start/stop/crash and every call timeout/output-size rejection is audited
+(`mcp.stdio_process_*`, `mcp.stdio_call_timeout`, `mcp.stdio_output_rejected`). AgentShield cannot
+enforce per-process network egress or memory/CPU limits from inside the JVM — see the design doc
+and `docs/operations.md` for what must be enforced externally before enabling this in production
+(a startup guard refuses to start a `prod`-profile deployment with stdio enabled unless
+`agentshield.stdio.external-sandbox-acknowledged=true` is also set).
 
 Discovery creates or updates a regular `Tool` row per MCP tool found, named
 `<serverName>:<mcpToolName>` — from that point on it behaves exactly like any other tool:

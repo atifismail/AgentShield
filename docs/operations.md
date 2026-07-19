@@ -145,6 +145,83 @@ refusing to start. `oauthClientSecretRef` (set alongside `authMode`) is a refere
 against ordinary Spring configuration (an environment variable of that exact name, or any other
 configured property source) — the plaintext secret itself is never stored in the database.
 
+## Stdio MCP transport and sandboxing
+
+Full design: `design-stdio-sse-mcp-transport-and-sandboxing.md` (local-only, not published — same
+as the other design docs, but this operational summary is the part every deployer needs).
+
+**Off by default** (`agentshield.stdio.enabled=false`). Registering or invoking a `STDIO`-transport
+MCP server fails closed while disabled — this is the highest-risk capability in the codebase
+(arbitrary local subprocess execution), so it's an explicit opt-in, not a default posture.
+
+To enable it:
+
+```yaml
+agentshield:
+  stdio:
+    enabled: true
+    allowed-commands: [node, python3, npx]   # empty by default — nothing is spawnable until listed
+    sandbox-root: mcp-sandboxes               # each server gets its own subdirectory here
+    idle-timeout-minutes: 15
+    call-timeout-seconds: 30
+    max-output-bytes: 1048576
+    max-concurrent-processes: 10
+```
+
+**Environment variables are empty by default, per server.** `stdioEnvAllowlist` (set at
+registration, comma-separated names — never values) controls exactly which variable names are
+copied into a spawned subprocess's environment, resolved from AgentShield's own process
+environment at spawn time. Nothing is passed through automatically — not even `PATH`; if a stdio
+tool fails with "command not found," add `PATH` to that server's allowlist. **`HOME` and
+`USERPROFILE` are treated the same as any other name (they may be allowlisted if a tool genuinely
+needs them) but are sensitive**: either can expose the AgentShield process's home-directory path
+and, more importantly, many interpreters consult `HOME`/`USERPROFILE` to locate their *own*
+credential caches (`~/.npmrc`, `~/.aws/credentials`, `~/.config/gh/hosts.yml`, etc.) — only
+allowlist either when a specific tool requires it, and know what's in that directory before you
+do. If an allowlisted name isn't actually set on the AgentShield process itself, spawning fails
+closed with a clear error naming the missing variable.
+
+**AgentShield cannot enforce per-process network egress or memory/CPU limits from inside the
+JVM** — there is no portable API for this without OS namespaces/cgroups/seccomp, which this
+project deliberately avoids depending on (no added native dependency, no shell-out). These must be
+enforced at the deployment layer instead:
+
+- A Kubernetes `NetworkPolicy` restricting egress for any deployment with stdio enabled — this is
+  the real mitigation for the fact that a spawned subprocess has the same network access as
+  AgentShield itself.
+- Pod `resources.limits` (`memory`, `cpu`) as the backstop for the fact that AgentShield can't cap
+  an individual subprocess's resource usage — blunt (a runaway child can get the whole pod
+  OOM-killed), but real.
+- `securityContext: { runAsNonRoot: true, readOnlyRootFilesystem: true }` with
+  `agentshield.stdio.sandbox-root` mounted as a separate writable volume — the only writable path.
+- Only register stdio MCP servers whose code you trust to the same degree as a local dependency —
+  a stdio MCP server *is* local code execution by design; AgentShield's consent/approval layers
+  control who may invoke it, not what its code does once running.
+
+**Production startup guard.** If `agentshield.stdio.enabled=true` while the `prod` Spring profile
+is active, the app refuses to start unless `agentshield.stdio.external-sandbox-acknowledged=true`
+is also set — confirming the checklist above has actually been applied, not just read. This
+mirrors the existing "refuses to start with the default admin password in prod" check
+(`ProductionSafetyChecks`) — it can't verify a `NetworkPolicy` actually exists any more than that
+check can verify a password is *good*, only that a known-bad default isn't still in place; its
+purpose is to convert a silent, easy-to-miss gap into a loud, impossible-to-miss one.
+
+```
+AGENTSHIELD_STDIO_ENABLED=true
+AGENTSHIELD_STDIO_EXTERNAL_SANDBOX_ACKNOWLEDGED=true
+```
+
+Every subprocess start/stop/crash and every call-timeout/output-size rejection is audited
+(`mcp.stdio_process_started`/`_stopped`/`_crashed`/`_spawn_failed`, `mcp.stdio_call_timeout`,
+`mcp.stdio_output_rejected`) — monitor these the same way you'd monitor deny spikes elsewhere.
+
+**Windows note** (this project is developed on Windows; production is Linux-only per the
+`Dockerfile`): npm/npx-installed CLI tools on Windows are commonly `.cmd` batch-file shims, which
+Windows can only launch via `cmd.exe /c`, reintroducing a narrower metacharacter risk that direct
+`.exe`/binary invocation doesn't have. `agentshield.stdio.allow-windows-batch-commands` defaults to
+`false` (rejecting `.cmd`/`.bat` commands) for exactly this reason — leave it off in any
+Linux/production deployment; it exists only for local Windows development convenience.
+
 ## Tool/skill supply-chain provenance trust policy
 
 Every tool version gets an automatic Level-1 checksum record; Level 2 (Sigstore signature
@@ -200,3 +277,4 @@ docker compose up
 - Review the default policy version and adjust rules for your environment before enabling `ENFORCE` mode broadly; use dry-run first.
 - Scrape `/actuator/prometheus` from your existing monitoring stack.
 - Periodically check `GET /api/audit/verify-integrity` (or the "Verify Integrity" button on the Audit page).
+- Leave `agentshield.stdio.enabled=false` unless you specifically need stdio MCP servers — if you do enable it, apply the `NetworkPolicy`/resource-limits/`securityContext` checklist under "Stdio MCP transport and sandboxing" above *before* setting `agentshield.stdio.external-sandbox-acknowledged=true` (the app won't start in `prod` without it once stdio is enabled, by design).

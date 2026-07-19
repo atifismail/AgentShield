@@ -18,13 +18,16 @@ public class McpToolInvoker {
     private final McpServerRepository serverRepository;
     private final McpJsonRpcClient rpcClient;
     private final McpOAuthTokenService oauthTokenService;
+    private final StdioMcpProcessManager stdioProcessManager;
     private final ObjectMapper objectMapper;
 
     public McpToolInvoker(McpServerRepository serverRepository, McpJsonRpcClient rpcClient,
-            McpOAuthTokenService oauthTokenService, ObjectMapper objectMapper) {
+            McpOAuthTokenService oauthTokenService, StdioMcpProcessManager stdioProcessManager,
+            ObjectMapper objectMapper) {
         this.serverRepository = serverRepository;
         this.rpcClient = rpcClient;
         this.oauthTokenService = oauthTokenService;
+        this.stdioProcessManager = stdioProcessManager;
         this.objectMapper = objectMapper;
     }
 
@@ -33,6 +36,19 @@ public class McpToolInvoker {
         if (server == null) {
             return McpInvocationResult.failure("MCP server " + mcpServerId + " is no longer registered");
         }
+
+        if (server.getTransportType() == McpTransportType.STDIO) {
+            ObjectNode stdioParams = objectMapper.createObjectNode();
+            stdioParams.put("name", mcpToolName);
+            stdioParams.set("arguments", input == null ? objectMapper.createObjectNode() : input);
+            var stdioResult = stdioProcessManager.call(server, "tools/call", stdioParams);
+            if (!stdioResult.success()) {
+                return McpInvocationResult.failure(stdioResult.errorMessage());
+            }
+            String stdioRawBody = stdioResult.result() == null ? "{}" : stdioResult.result().toString();
+            return McpInvocationResult.success(stdioRawBody, stdioResult.result());
+        }
+
         if (server.getTransportType() != McpTransportType.HTTP) {
             return McpInvocationResult.failure(
                     "invocation for transport " + server.getTransportType() + " is not implemented yet");

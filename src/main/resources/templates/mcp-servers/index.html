@@ -14,7 +14,7 @@
                 <div class="card-body">
                     <table class="table table-hover align-middle data-table" id="serversTable">
                         <thead>
-                        <tr><th>Name</th><th>Transport</th><th>Auth mode</th><th>Tool group</th><th>Last discovered</th><th>Actions</th></tr>
+                        <tr><th>Name</th><th>Transport</th><th>Auth mode</th><th>Tool group</th><th>Last discovered</th><th>Stdio process</th><th>Actions</th></tr>
                         </thead>
                         <tbody>
                         <tr th:each="s : ${servers}" th:attr="data-server-id=${s.id}">
@@ -23,8 +23,17 @@
                             <td><span class="badge" th:classappend="${s.authMode.name() == 'NONE'} ? 'status-badge-pending' : 'status-badge-approved'" th:text="${s.authMode}">NONE</span></td>
                             <td th:text="${s.toolGroup}">mcp</td>
                             <td th:text="${s.lastDiscoveredAt != null ? #temporals.format(s.lastDiscoveredAt, 'yyyy-MM-dd HH:mm') : 'never'}">-</td>
+                            <td th:if="${s.transportType.name() == 'STDIO'}">
+                                <span class="badge stdio-status-badge status-badge-pending">checking&hellip;</span>
+                                <span class="stdio-status-detail text-secondary small"></span>
+                            </td>
+                            <td th:unless="${s.transportType.name() == 'STDIO'}">&mdash;</td>
                             <td>
                                 <button type="button" class="btn btn-sm btn-outline-primary btn-discover">Discover</button>
+                                <span th:if="${s.transportType.name() == 'STDIO'}" class="btn-group btn-group-sm" role="group" sec:authorize="hasRole('ADMIN')" xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+                                    <button type="button" class="btn btn-outline-success btn-stdio-start">Start</button>
+                                    <button type="button" class="btn btn-outline-danger btn-stdio-stop">Stop</button>
+                                </span>
                             </td>
                         </tr>
                         </tbody>
@@ -50,6 +59,18 @@
                         <div class="mb-2">
                             <label class="form-label small">Endpoint URL (HTTP transport)</label>
                             <input type="text" class="form-control form-control-sm" name="endpointUrl" placeholder="https://mcp.example.com/mcp"/>
+                        </div>
+                        <div class="mb-2">
+                            <label class="form-label small">Command (stdio transport, executable name only — must be on agentshield.stdio.allowed-commands)</label>
+                            <input type="text" class="form-control form-control-sm" name="command" placeholder="npx"/>
+                        </div>
+                        <div class="mb-2">
+                            <label class="form-label small">Args (stdio transport, space-separated)</label>
+                            <input type="text" class="form-control form-control-sm" name="args" placeholder="-y some-mcp-server"/>
+                        </div>
+                        <div class="mb-2">
+                            <label class="form-label small">Env allowlist (stdio transport, comma-separated names, never values &mdash; empty by default; HOME/USERPROFILE are sensitive)</label>
+                            <input type="text" class="form-control form-control-sm" name="stdioEnvAllowlist" placeholder="PATH,SOME_API_KEY"/>
                         </div>
                         <div class="mb-2">
                             <label class="form-label small">Owner</label>

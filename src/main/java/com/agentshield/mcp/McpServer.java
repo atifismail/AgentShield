@@ -14,10 +14,12 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 /**
- * A registered MCP server. Only {@link McpTransportType#HTTP} is actually invokable today —
- * {@code SSE} and {@code STDIO} can be registered (the schema supports them, per
- * improvement_plan.md #6) but discovery/invocation for them isn't implemented yet and fails
- * clearly rather than pretending to work.
+ * A registered MCP server. {@link McpTransportType#HTTP} and {@link McpTransportType#STDIO} are
+ * invokable; {@code STDIO} spawns a locally-sandboxed subprocess per
+ * design-stdio-sse-mcp-transport-and-sandboxing.md and is gated behind
+ * {@code agentshield.stdio.enabled} (off by default). {@code SSE} can be registered (the schema
+ * supports it) but discovery/invocation for it isn't implemented yet and fails clearly rather than
+ * pretending to work.
  */
 @Entity
 @Table(name = "mcp_servers")
@@ -48,9 +50,15 @@ public class McpServer {
     @Column(length = 2000)
     private String args;
 
-    /** STDIO transport only (not yet implemented): a reference name for env vars to inject — never a raw secret value. */
-    @Column(name = "env_ref")
-    private String envRef;
+    /**
+     * STDIO transport only: comma-separated environment variable NAMES (never values) to copy
+     * into the spawned subprocess's environment, resolved from AgentShield's own process
+     * environment at spawn time. Empty/null by default — nothing is passed through automatically,
+     * not even PATH/HOME (design-stdio-sse-mcp-transport-and-sandboxing.md §5.2). HOME/USERPROFILE
+     * require the same explicit listing as any other name and are documented as sensitive.
+     */
+    @Column(name = "stdio_env_allowlist")
+    private String stdioEnvAllowlist;
 
     /** How AgentShield authenticates itself to this server (design-mcp-authorization.md §4). */
     @Enumerated(EnumType.STRING)

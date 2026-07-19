@@ -69,6 +69,19 @@ agentshield:
         - 192.168.0.0/16
   approval:
     default-expiration-minutes: 60
+  stdio:
+    # Off by default (design-stdio-sse-mcp-transport-and-sandboxing.md §3) — spawning local
+    # subprocesses is the highest-risk capability in this codebase. allowed-commands is also
+    # empty by default: nothing is spawnable until an operator explicitly allowlists executables.
+    enabled: false
+    allowed-commands: []
+    allow-windows-batch-commands: false
+    sandbox-root: mcp-sandboxes
+    idle-timeout-minutes: 15
+    call-timeout-seconds: 30
+    max-output-bytes: 1048576
+    max-concurrent-processes: 10
+    external-sandbox-acknowledged: false
 
 logging:
   level:

@@ -1,5 +1,6 @@
 package com.agentshield.security;
 
+import com.agentshield.mcp.StdioMcpProperties;
 import jakarta.annotation.PostConstruct;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.env.Environment;
@@ -19,11 +20,14 @@ public class ProductionSafetyChecks {
 
     private final Environment environment;
     private final String adminPassword;
+    private final StdioMcpProperties stdioMcpProperties;
 
     public ProductionSafetyChecks(Environment environment,
-            @Value("${agentshield.security.default-admin-password}") String adminPassword) {
+            @Value("${agentshield.security.default-admin-password}") String adminPassword,
+            StdioMcpProperties stdioMcpProperties) {
         this.environment = environment;
         this.adminPassword = adminPassword;
+        this.stdioMcpProperties = stdioMcpProperties;
     }
 
     @PostConstruct
@@ -41,6 +45,19 @@ public class ProductionSafetyChecks {
                     "Refusing to start with the \"prod\" profile active and no AGENTSHIELD_ADMIN_PASSWORD set "
                             + "(or it's still the insecure default \"changeit\"). Set a real admin password before "
                             + "starting a production deployment.");
+        }
+        if (prod && stdioMcpProperties.isEnabled() && !stdioMcpProperties.isExternalSandboxAcknowledged()) {
+            throw new IllegalStateException(
+                    "Refusing to start: agentshield.stdio.enabled=true with the \"prod\" profile active, but "
+                            + "agentshield.stdio.external-sandbox-acknowledged is not set to true. Stdio MCP servers "
+                            + "run as local subprocesses that AgentShield cannot fully sandbox on its own (no "
+                            + "per-process network egress control, no per-process memory/CPU limit, no filesystem "
+                            + "confinement beyond working-directory placement — see "
+                            + "design-stdio-sse-mcp-transport-and-sandboxing.md §5.4/§10). Before enabling "
+                            + "stdio in production, ensure subprocess isolation is enforced externally (e.g. a "
+                            + "Kubernetes NetworkPolicy restricting egress, a seccomp/AppArmor profile, and pod "
+                            + "resource limits — see §14), then set "
+                            + "agentshield.stdio.external-sandbox-acknowledged=true to confirm this has been done.");
         }
     }
 }

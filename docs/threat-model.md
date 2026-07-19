@@ -50,8 +50,8 @@ guidance. Not yet implemented — tracked here rather than silently assumed cove
   requested — see `docs/policy-guide.md` rule 11, `docs/api.md` (MCP consents), and
   `docs/architecture.md`. OAuth 2.1 token audience/issuer/expiry/scope validation is implemented
   for servers with `authMode: OAUTH2`, and wrong-audience/wrong-issuer tokens are rejected and
-  never cached. Local/stdio credential brokering is designed but not yet implemented, pending
-  stdio transport support itself (still a gap, tracked below under weak local-tool isolation).
+  never cached. Local/stdio credential brokering (env-var allowlisting) is now implemented too —
+  see the next item.
 - ~~**Tool/skill supply-chain provenance.**~~ Partially addressed: §1 (tool poisoning) already
   covered detecting drift after the fact via fingerprint hashing; every tool version now also
   gets an automatic Level-1 checksum record, and optional Level-2 Sigstore keyless signature
@@ -62,15 +62,26 @@ guidance. Not yet implemented — tracked here rather than silently assumed cove
   the tool back to `DRIFTED` immediately. **Still open:** trusted-publisher metadata display,
   pinning of external instruction URLs by content hash (no such URL-fetching mechanism exists
   yet in this codebase to pin), and provenance for `LOCAL_SKILL`/`REMOTE_PACKAGE` source types
-  (neither has an entity yet — both depend on local/stdio tool execution, itself not
-  implemented — tracked below under weak local-tool isolation).
-- **Weak local-tool isolation.** Tool execution (HTTP or MCP) has no per-tool filesystem,
-  environment-variable, or outbound-network allowlist, and no resource/timeout limits beyond the
-  gateway's own outbound-endpoint validation (§6, `docs/api.md`). A future local/stdio MCP
-  execution mode in particular needs this before it can be considered safe by default.
-- **Governance evidence export.** §5 (poor auditability) covers the raw audit trail, but there's
-  no mapping of AgentShield's controls to a governance framework (e.g. NIST AI RMF's
-  govern/map/measure/manage functions) or an exportable evidence report for compliance review.
+  (neither has an entity yet — stdio MCP transport is now implemented, but these two source types
+  specifically still have no registration/fetch mechanism of their own).
+- ~~**Weak local-tool isolation.**~~ Partially addressed for stdio MCP servers (the only local
+  code execution path in this codebase): `agentshield.stdio.enabled` defaults to `false`;
+  spawnable commands must be explicitly allowlisted (empty by default); each subprocess's
+  environment is built from scratch (nothing from AgentShield's own process unless a name is
+  explicitly listed, `HOME`/`USERPROFILE` included — see `docs/operations.md`); working-directory
+  placement under a dedicated sandbox root; and call-timeout/output-size/process-count limits, all
+  audited (`mcp.stdio_*` events) — see `design-stdio-sse-mcp-transport-and-sandboxing.md` and
+  `docs/api.md`. **Still open, stated plainly:** AgentShield cannot enforce per-process network
+  egress or memory/CPU limits from inside the JVM (no OS namespaces/cgroups/seccomp from pure
+  Java), and there is no filesystem confinement beyond working-directory placement plus the
+  existing non-root OS user — both are deployment-layer responsibilities (Kubernetes
+  `NetworkPolicy`, `resources.limits`, `securityContext`; see `docs/operations.md`). A `prod`-profile
+  deployment refuses to start with stdio enabled unless
+  `agentshield.stdio.external-sandbox-acknowledged=true` confirms this has been done.
+- ~~**Governance evidence export.**~~ Addressed: `GET /api/governance/report` exports registered
+  agents, approved tools, denied actions, approval records, tool drift events, incidents, and
+  policy versions for a date range, mapped to NIST AI RMF's govern/map/measure/manage functions,
+  as JSON or downloadable Markdown — see `docs/api.md`.
 
 ## Non-goals
 
