@@ -2,7 +2,7 @@
 
 ## Default policy rules
 
-AgentShield ships with ten default rules, evaluated in order. The first rule that matches determines the decision (DENY or APPROVAL_REQUIRED); if no rule matches, the request is ALLOWed.
+AgentShield ships with eleven default rules, evaluated in order. The first rule that matches determines the decision (DENY or APPROVAL_REQUIRED); if no rule matches, the request is ALLOWed.
 
 | # | Rule | Decision |
 |---|------|----------|
@@ -16,6 +16,7 @@ AgentShield ships with ten default rules, evaluated in order. The first rule tha
 | 8 | Tool response contains a prompt-injection pattern | DENY |
 | 9 | Agent calls a tool outside its allowed tool groups | DENY |
 | 10 | Request payload exceeds the configured maximum size | DENY |
+| 11 | MCP-backed tool: agent has no active MCP consent grant | DENY |
 
 Every decision includes a human-readable reason so an agent developer or reviewer can see exactly why a call was blocked or queued.
 
@@ -25,14 +26,22 @@ conservative MVP choice (the safest default for the highest-risk action/environm
 an approvable path for pre-authorized destructive maintenance windows is a roadmap item, not
 something to work around by weakening this rule.
 
+**Note on rule 11:** this is AgentShield's confused-deputy control for MCP (see
+`docs/threat-model.md` and `docs/architecture.md`). It only fires for tools discovered from an
+MCP server (`Tool.isMcpBacked()`) — plain HTTP tools are unaffected. A tool being `APPROVED` in
+the tool registry is necessary but not sufficient for an MCP-backed tool: the calling agent must
+also hold an ACTIVE, unexpired `McpConsent` grant for that MCP server, scoped to any combination
+of tool name and action category (a null-scoped field on the grant means "any"). Grant and manage
+consents at `POST /api/mcp-consents` / the MCP page in the admin UI.
+
 ## Policy override precedence
 
-Beyond the 10 fixed rules above, an ADMIN/SECURITY_ANALYST can add database-backed policy
+Beyond the 11 fixed rules above, an ADMIN/SECURITY_ANALYST can add database-backed policy
 overrides (`POST /api/policy-overrides`) — scoped by any combination of action category,
 environment, tool group, and agent, each with its own decision and reason. Evaluation order is
 strict and cannot be changed at runtime:
 
-1. **The 10 fixed rules run first, unconditionally, in the order listed above.** The first one
+1. **The 11 fixed rules run first, unconditionally, in the order listed above.** The first one
    that matches decides the outcome and evaluation stops right there.
 2. **Only if none of the fixed rules match** does the engine consult active overrides, in
    priority order. The first matching override decides the outcome.
@@ -41,8 +50,9 @@ strict and cannot be changed at runtime:
 This means an override can add *extra* restriction (deny something the fixed rules would have
 allowed) or grant a scoped extra allowance for a gap the fixed rules leave open — but it can
 never weaken or bypass a fixed rule, since those are checked first and always win. For example,
-an override cannot un-deny a production destructive action (rule 4) or re-allow a drifted tool
-(rule 3); it can only ever affect the space of requests all 10 fixed rules would otherwise ALLOW.
+an override cannot un-deny a production destructive action (rule 4), re-allow a drifted tool
+(rule 3), or bypass a missing MCP consent grant (rule 11) — it can only ever affect the space of
+requests all 11 fixed rules would otherwise ALLOW.
 Use `POST /api/policies/dry-run` to test a hypothetical request against the full evaluation order
 above (fixed rules, then active overrides) before relying on a policy or override change.
 

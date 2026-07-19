@@ -3,12 +3,14 @@ package com.agentshield.mcp;
 import com.agentshield.mcp.McpDtos.DiscoveryResponse;
 import com.agentshield.mcp.McpDtos.McpServerResponse;
 import com.agentshield.mcp.McpDtos.RegisterMcpServerRequest;
+import com.agentshield.mcp.McpDtos.UpdateMcpAuthRequest;
 import com.agentshield.tool.Tool;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import java.util.List;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -41,6 +43,11 @@ public class McpServerController {
     @GetMapping("/{id}")
     public McpServerResponse get(@PathVariable Long id) {
         return McpServerResponse.from(discoveryService.get(id));
+    }
+
+    @PatchMapping("/{id}/auth")
+    public McpServerResponse updateAuth(@PathVariable Long id, @Valid @RequestBody UpdateMcpAuthRequest request) {
+        return McpServerResponse.from(discoveryService.updateAuth(id, request));
     }
 
     @PostMapping("/{id}/discover")

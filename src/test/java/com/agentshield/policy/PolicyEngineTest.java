@@ -6,6 +6,7 @@ import com.agentshield.agent.Agent;
 import com.agentshield.agent.AgentStatus;
 import com.agentshield.common.ActionCategory;
 import com.agentshield.common.PolicyDecisionType;
+import com.agentshield.mcp.McpConsentService;
 import com.agentshield.risk.Confidence;
 import com.agentshield.risk.DetectionMatch;
 import com.agentshield.risk.DetectionResult;
@@ -22,7 +23,8 @@ class PolicyEngineTest {
     // No overrides configured for these tests — they exercise the fixed rules in isolation.
     // PolicyOverrideTest covers the override layer itself.
     private final PolicyOverrideRepository overrideRepository = Mockito.mock(PolicyOverrideRepository.class);
-    private final PolicyEngine engine = new PolicyEngine(overrideRepository);
+    private final McpConsentService mcpConsentService = Mockito.mock(McpConsentService.class);
+    private final PolicyEngine engine = new PolicyEngine(overrideRepository, mcpConsentService);
 
     {
         Mockito.when(overrideRepository.findActiveOrderByPriority()).thenReturn(List.of());
@@ -174,6 +176,48 @@ class PolicyEngineTest {
                 agent(AgentStatus.ENABLED, "db"),
                 tool(ToolApprovalStatus.APPROVED, "h", "h", "db"),
                 ActionCategory.READ, "DEV", 10));
+        assertThat(outcome.decision()).isEqualTo(PolicyDecisionType.ALLOW);
+    }
+
+    @Test
+    void rule11_deniesMcpBackedToolWithoutActiveConsent() {
+        Tool mcpTool = tool(ToolApprovalStatus.APPROVED, "h", "h", "mcp");
+        mcpTool.setMcpServerId(1L);
+        mcpTool.setMcpToolName("echo");
+        Mockito.when(mcpConsentService.hasActiveConsent(Mockito.any(), Mockito.eq(1L), Mockito.eq("echo"),
+                Mockito.eq(ActionCategory.READ))).thenReturn(false);
+
+        var outcome = engine.evaluateRequest(ctx(agent(AgentStatus.ENABLED, "mcp"), mcpTool, ActionCategory.READ, "DEV", 10));
+
+        assertThat(outcome.decision()).isEqualTo(PolicyDecisionType.DENY);
+        assertThat(outcome.ruleId()).isEqualTo("deny-missing-mcp-consent");
+    }
+
+    @Test
+    void rule11_allowsMcpBackedToolWithActiveConsent() {
+        Tool mcpTool = tool(ToolApprovalStatus.APPROVED, "h", "h", "mcp");
+        mcpTool.setMcpServerId(1L);
+        mcpTool.setMcpToolName("echo");
+        Mockito.when(mcpConsentService.hasActiveConsent(Mockito.any(), Mockito.eq(1L), Mockito.eq("echo"),
+                Mockito.eq(ActionCategory.READ))).thenReturn(true);
+
+        var outcome = engine.evaluateRequest(ctx(agent(AgentStatus.ENABLED, "mcp"), mcpTool, ActionCategory.READ, "DEV", 10));
+
+        assertThat(outcome.decision()).isEqualTo(PolicyDecisionType.ALLOW);
+    }
+
+    @Test
+    void rule11_doesNotApplyToNonMcpTools() {
+        // Plain HTTP tool — mcpServerId stays null, isMcpBacked() is false, rule 11 is a no-op
+        // regardless of what hasActiveConsent would return.
+        Mockito.when(mcpConsentService.hasActiveConsent(Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any()))
+                .thenReturn(false);
+
+        var outcome = engine.evaluateRequest(ctx(
+                agent(AgentStatus.ENABLED, "db"),
+                tool(ToolApprovalStatus.APPROVED, "h", "h", "db"),
+                ActionCategory.READ, "DEV", 10));
+
         assertThat(outcome.decision()).isEqualTo(PolicyDecisionType.ALLOW);
     }
 }

@@ -5,17 +5,26 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import org.springframework.stereotype.Component;
 
-/** Calls {@code tools/call} on the MCP server backing a given tool, normalizing the result. */
+/**
+ * Calls {@code tools/call} on the MCP server backing a given tool, normalizing the result.
+ * Consent (is this agent allowed to use this MCP server at all?) is checked earlier, by
+ * {@code PolicyEngine}'s pre-call evaluation (design-mcp-authorization.md §5/§8) — by the time
+ * this class runs, the call has already been authorized. This class's own job is purely
+ * mechanical: attach a valid OAuth token when the server requires one (§6).
+ */
 @Component
 public class McpToolInvoker {
 
     private final McpServerRepository serverRepository;
     private final McpJsonRpcClient rpcClient;
+    private final McpOAuthTokenService oauthTokenService;
     private final ObjectMapper objectMapper;
 
-    public McpToolInvoker(McpServerRepository serverRepository, McpJsonRpcClient rpcClient, ObjectMapper objectMapper) {
+    public McpToolInvoker(McpServerRepository serverRepository, McpJsonRpcClient rpcClient,
+            McpOAuthTokenService oauthTokenService, ObjectMapper objectMapper) {
         this.serverRepository = serverRepository;
         this.rpcClient = rpcClient;
+        this.oauthTokenService = oauthTokenService;
         this.objectMapper = objectMapper;
     }
 
@@ -29,11 +38,21 @@ public class McpToolInvoker {
                     "invocation for transport " + server.getTransportType() + " is not implemented yet");
         }
 
+        String bearerToken = null;
+        if (server.getAuthMode() == McpAuthMode.OAUTH2) {
+            var tokenResult = oauthTokenService.getValidToken(server);
+            if (!tokenResult.success()) {
+                return McpInvocationResult.failure("could not obtain an OAuth token for MCP server '"
+                        + server.getName() + "': " + tokenResult.errorMessage());
+            }
+            bearerToken = tokenResult.accessToken();
+        }
+
         ObjectNode params = objectMapper.createObjectNode();
         params.put("name", mcpToolName);
         params.set("arguments", input == null ? objectMapper.createObjectNode() : input);
 
-        var rpcResult = rpcClient.call(server.getEndpointUrl(), "tools/call", params);
+        var rpcResult = rpcClient.call(server.getEndpointUrl(), "tools/call", params, bearerToken);
         if (!rpcResult.success()) {
             return McpInvocationResult.failure(rpcResult.errorMessage());
         }

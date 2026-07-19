@@ -35,16 +35,18 @@ public class McpDiscoveryService {
     private final ToolRepository toolRepository;
     private final ToolService toolService;
     private final McpJsonRpcClient rpcClient;
+    private final McpOAuthTokenService oauthTokenService;
     private final OutboundEndpointValidator outboundEndpointValidator;
     private final AuditService auditService;
 
     public McpDiscoveryService(McpServerRepository serverRepository, ToolRepository toolRepository,
-            ToolService toolService, McpJsonRpcClient rpcClient, OutboundEndpointValidator outboundEndpointValidator,
-            AuditService auditService) {
+            ToolService toolService, McpJsonRpcClient rpcClient, McpOAuthTokenService oauthTokenService,
+            OutboundEndpointValidator outboundEndpointValidator, AuditService auditService) {
         this.serverRepository = serverRepository;
         this.toolRepository = toolRepository;
         this.toolService = toolService;
         this.rpcClient = rpcClient;
+        this.oauthTokenService = oauthTokenService;
         this.outboundEndpointValidator = outboundEndpointValidator;
         this.auditService = auditService;
     }
@@ -88,6 +90,29 @@ public class McpDiscoveryService {
     }
 
     /**
+     * Sets how AgentShield authenticates itself to this server (design-mcp-authorization.md §4,
+     * §9). Separate from {@link #register} since it's typically configured once, after initial
+     * registration, by an operator who owns the relationship with the MCP server's authorization
+     * server.
+     */
+    @Transactional
+    public McpServer updateAuth(Long id, McpDtos.UpdateMcpAuthRequest request) {
+        McpServer server = get(id);
+        server.setAuthMode(request.authMode());
+        server.setOauthIssuer(request.oauthIssuer());
+        server.setOauthResource(request.oauthResource());
+        server.setOauthTokenEndpoint(request.oauthTokenEndpoint());
+        server.setOauthClientId(request.oauthClientId());
+        server.setOauthClientSecretRef(request.oauthClientSecretRef());
+        server.setOauthScopes(request.oauthScopes());
+        server.touch();
+        server = serverRepository.save(server);
+        auditService.record(null, "mcp.server_auth_updated", ActorType.USER, null, null, null, AuditSeverity.INFO,
+                "MCP server '" + server.getName() + "' auth mode set to " + server.getAuthMode(), null);
+        return server;
+    }
+
+    /**
      * Calls {@code tools/list}, upserts a {@code Tool} row per discovered tool (new tools start
      * PENDING; changed ones flip to DRIFTED via the existing fingerprint logic), and marks any
      * previously-discovered tool no longer present as REJECTED ("removed").
@@ -100,7 +125,18 @@ public class McpDiscoveryService {
                     "discovery for transport " + server.getTransportType() + " is not implemented yet; only HTTP is supported");
         }
 
-        var rpcResult = rpcClient.call(server.getEndpointUrl(), "tools/list", null);
+        String bearerToken = null;
+        if (server.getAuthMode() == McpAuthMode.OAUTH2) {
+            var tokenResult = oauthTokenService.getValidToken(server);
+            if (!tokenResult.success()) {
+                throw new ValidationException(
+                        "could not obtain an OAuth token for MCP server '" + server.getName() + "': "
+                                + tokenResult.errorMessage());
+            }
+            bearerToken = tokenResult.accessToken();
+        }
+
+        var rpcResult = rpcClient.call(server.getEndpointUrl(), "tools/list", null, bearerToken);
         if (!rpcResult.success()) {
             auditService.record(null, "mcp.discovery_failed", ActorType.SYSTEM, "mcp-discovery", null, null,
                     AuditSeverity.WARNING, "discovery failed for MCP server '" + server.getName() + "': "

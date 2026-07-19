@@ -23,6 +23,18 @@ public final class McpDtos {
     ) {
     }
 
+    /** design-mcp-authorization.md §9 — set separately from registration, ADMIN only. */
+    public record UpdateMcpAuthRequest(
+            @NotNull McpAuthMode authMode,
+            String oauthIssuer,
+            String oauthResource,
+            String oauthTokenEndpoint,
+            String oauthClientId,
+            String oauthClientSecretRef,
+            String oauthScopes
+    ) {
+    }
+
     public record McpServerResponse(
             Long id,
             String name,
@@ -33,12 +45,19 @@ public final class McpDtos {
             String toolGroup,
             String discoveredToolsHash,
             Instant lastDiscoveredAt,
-            Instant createdAt
+            Instant createdAt,
+            McpAuthMode authMode,
+            String oauthIssuer,
+            String oauthResource,
+            String oauthClientId,
+            String oauthClientSecretRef,
+            String oauthScopes
     ) {
         public static McpServerResponse from(McpServer s) {
             return new McpServerResponse(s.getId(), s.getName(), s.getTransportType(), s.getEndpointUrl(),
                     s.getOwner(), s.getEnvironment(), s.getToolGroup(), s.getDiscoveredToolsHash(),
-                    s.getLastDiscoveredAt(), s.getCreatedAt());
+                    s.getLastDiscoveredAt(), s.getCreatedAt(), s.getAuthMode(), s.getOauthIssuer(),
+                    s.getOauthResource(), s.getOauthClientId(), s.getOauthClientSecretRef(), s.getOauthScopes());
         }
     }
 

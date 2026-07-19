@@ -125,6 +125,26 @@ platform's secret manager, the same as `AGENTSHIELD_ADMIN_PASSWORD`. When enable
 is encrypted with AES-256-GCM using a fresh random IV per response before being written to
 `raw_response_encrypted`.
 
+## MCP authorization and consent
+
+Every MCP-backed tool call additionally requires an ACTIVE `McpConsent` grant for the calling
+agent, regardless of whether the target MCP server itself needs OAuth — see
+`docs/policy-guide.md` rule 11 and `docs/threat-model.md`. Manage grants at
+`POST /api/mcp-consents` or the MCP page in the admin UI (`/mcp-servers`).
+
+For MCP servers configured with `authMode: OAUTH2` (`PATCH /api/mcp-servers/{id}/auth`),
+AgentShield caches the OAuth access token it acquires for itself, encrypted the same way as raw
+tool response retention above. Set:
+
+- `agentshield.mcp.oauth-token-encryption-key=<base64-encoded 32-byte AES-256 key>`
+
+Unlike raw-response retention this key is only required once at least one MCP server is
+configured with `authMode: OAUTH2` — token acquisition for that server fails closed with a clear
+audit reason (`mcp.oauth_token_rejected`) if the key isn't set, rather than the whole application
+refusing to start. `oauthClientSecretRef` (set alongside `authMode`) is a reference name resolved
+against ordinary Spring configuration (an environment variable of that exact name, or any other
+configured property source) — the plaintext secret itself is never stored in the database.
+
 ## Rate limiting and request size
 
 `POST /api/gateway/invoke` is rate-limited per bearer token (falling back to remote address),

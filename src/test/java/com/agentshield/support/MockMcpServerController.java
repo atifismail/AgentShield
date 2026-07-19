@@ -6,6 +6,7 @@ import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
+import org.springframework.http.HttpHeaders;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -19,7 +20,10 @@ import org.springframework.web.bind.annotation.RestController;
  *
  * Test-controllable via static flags: {@link #echoToolDescription} lets a test simulate drift by
  * changing the description between two discovery calls; {@link #includeSecondTool} lets a test
- * simulate a tool disappearing between discoveries.
+ * simulate a tool disappearing between discoveries; {@link #requiredBearerToken} lets a test
+ * prove AgentShield actually attaches an OAuth token to outbound MCP calls (design-mcp-
+ * authorization.md §6.6) — null (the default) means no check, matching every test that doesn't
+ * care about auth.
  */
 @RestController
 @RequestMapping("/demo/mock-mcp-server")
@@ -27,15 +31,26 @@ public class MockMcpServerController {
 
     public static final AtomicReference<String> echoToolDescription = new AtomicReference<>("Echoes its input");
     public static final AtomicBoolean includeSecondTool = new AtomicBoolean(true);
+    public static final AtomicReference<String> requiredBearerToken = new AtomicReference<>();
 
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     @PostMapping
-    public ObjectNode handle(@RequestBody JsonNode request) {
+    public ObjectNode handle(@RequestBody JsonNode request,
+            @org.springframework.web.bind.annotation.RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false) String authorization) {
         String method = request.path("method").asText("");
         ObjectNode response = objectMapper.createObjectNode();
         response.put("jsonrpc", "2.0");
         response.put("id", request.path("id").asInt(1));
+
+        String expected = requiredBearerToken.get();
+        if (expected != null && !("Bearer " + expected).equals(authorization)) {
+            ObjectNode error = objectMapper.createObjectNode();
+            error.put("code", -32000);
+            error.put("message", "missing or incorrect bearer token");
+            response.set("error", error);
+            return response;
+        }
 
         if ("tools/list".equals(method)) {
             response.set("result", toolsListResult());

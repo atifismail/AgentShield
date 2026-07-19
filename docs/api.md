@@ -96,6 +96,7 @@ one, update the caller, then revoke the old one).
 | POST | `/api/mcp-servers` | any authenticated | Register an MCP server: `{name, transportType, endpointUrl, owner, environment, toolGroup}` |
 | GET | `/api/mcp-servers` | any authenticated | List servers |
 | GET | `/api/mcp-servers/{id}` | any authenticated | Get one server |
+| PATCH | `/api/mcp-servers/{id}/auth` | ADMIN | Set how AgentShield authenticates itself to this server: `{authMode: "NONE"\|"OAUTH2"\|"STDIO_ENV", oauthIssuer, oauthResource, oauthTokenEndpoint, oauthClientId, oauthClientSecretRef, oauthScopes}` |
 | POST | `/api/mcp-servers/{id}/discover` | any authenticated | Call `tools/list` and sync the result into the regular tool registry |
 
 Only `transportType: "HTTP"` is actually implemented — `SSE` and `STDIO` can be registered (the
@@ -109,6 +110,35 @@ it starts `PENDING`, goes through `/api/tools/{id}/approve` like normal, and is 
 input schema changed since the last discovery flips to `DRIFTED` (the same mechanism as any other
 tool); a tool that's no longer returned by `tools/list` is marked `REJECTED`. Both go through the
 existing tool-registry drift/approval workflow — nothing gateway-side changes for MCP tools.
+
+**Being APPROVED is not sufficient to call an MCP-backed tool** — see MCP consents below.
+
+### MCP OAuth (`authMode: "OAUTH2"`)
+
+When a server requires OAuth, AgentShield acts as its own OAuth 2.1 client using the
+`client_credentials` grant (no browser/human-resource-owner redirect — the human consent step is
+the MCP consent grant itself, below). `oauthClientSecretRef` is a *reference name* resolved
+against ordinary Spring configuration (typically an environment variable of that exact name) —
+never a plaintext secret in the request body. Tokens are validated on receipt
+(audience/issuer/expiry/scope) before being cached (AES-256-GCM encrypted); a wrong-audience or
+wrong-issuer token is rejected and never used. Requires
+`agentshield.mcp.oauth-token-encryption-key` to be set (see `docs/operations.md`) — acquisition
+fails closed, with a clear reason, if it isn't.
+
+## MCP consents — `/api/mcp-consents`
+
+| Method | Path | Role | Notes |
+|---|---|---|---|
+| GET | `/api/mcp-consents?agentId=&mcpServerId=` | ADMIN / SECURITY_ANALYST | List/filter |
+| POST | `/api/mcp-consents` | ADMIN / SECURITY_ANALYST | Grant: `{agentId, mcpServerId, toolName, actionCategory, expiresAt}` — `toolName`/`actionCategory`/`expiresAt` are optional; omitted means "any"/"never expires" |
+| POST | `/api/mcp-consents/{id}/revoke` | ADMIN / SECURITY_ANALYST | Immediate — the next call from that agent to that MCP server is denied |
+
+The direct confused-deputy control (`docs/threat-model.md`): a tool discovered from an MCP server
+being `APPROVED` is necessary but not sufficient. The calling agent must also hold an ACTIVE,
+unexpired consent grant scoped to that MCP server (and, if the grant is that specific, the exact
+tool/action category) — checked by the policy engine's rule 11
+(`docs/policy-guide.md`) before every call, before any OAuth token is even requested. No grant,
+no call — regardless of whether the target MCP server itself requires OAuth.
 
 ## Policies — `/api/policies`
 

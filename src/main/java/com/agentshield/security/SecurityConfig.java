@@ -61,6 +61,8 @@ public class SecurityConfig {
             auth.requestMatchers("/api/policies/**", "/api/policy-overrides/**").hasAnyRole("ADMIN", "SECURITY_ANALYST");
             auth.requestMatchers("/api/approvals/*/approve", "/api/approvals/*/reject").hasAnyRole("ADMIN", "APPROVER");
             auth.requestMatchers("/api/incidents/*/status").hasAnyRole("ADMIN", "SECURITY_ANALYST");
+            auth.requestMatchers("/api/mcp-servers/*/auth").hasRole("ADMIN");
+            auth.requestMatchers("/api/mcp-consents/**").hasAnyRole("ADMIN", "SECURITY_ANALYST");
             auth.anyRequest().authenticated();
         });
 

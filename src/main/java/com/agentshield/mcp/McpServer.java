@@ -52,6 +52,34 @@ public class McpServer {
     @Column(name = "env_ref")
     private String envRef;
 
+    /** How AgentShield authenticates itself to this server (design-mcp-authorization.md §4). */
+    @Enumerated(EnumType.STRING)
+    @Column(name = "auth_mode", nullable = false, length = 32)
+    private McpAuthMode authMode = McpAuthMode.NONE;
+
+    /** OAuth 2.1 only: expected `iss` claim / the authorization server's issuer URL. */
+    @Column(name = "oauth_issuer", length = 1024)
+    private String oauthIssuer;
+
+    /** OAuth 2.1 only: canonical resource URI (RFC 8707) — also the expected `aud` claim. */
+    @Column(name = "oauth_resource", length = 1024)
+    private String oauthResource;
+
+    /** OAuth 2.1 only: resolved via discovery at registration time and cached here. */
+    @Column(name = "oauth_token_endpoint", length = 1024)
+    private String oauthTokenEndpoint;
+
+    @Column(name = "oauth_client_id", length = 512)
+    private String oauthClientId;
+
+    /** A reference name only — the plaintext secret is never stored here (design §6.4). */
+    @Column(name = "oauth_client_secret_ref", length = 512)
+    private String oauthClientSecretRef;
+
+    /** Space-separated scopes requested at token time. */
+    @Column(name = "oauth_scopes", length = 1024)
+    private String oauthScopes;
+
     private String owner;
 
     private String environment;

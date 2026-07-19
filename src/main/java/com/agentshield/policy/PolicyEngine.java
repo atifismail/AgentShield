@@ -2,16 +2,17 @@ package com.agentshield.policy;
 
 import com.agentshield.common.ActionCategory;
 import com.agentshield.common.PolicyDecisionType;
+import com.agentshield.mcp.McpConsentService;
 import com.agentshield.risk.DetectionResult;
 import com.agentshield.tool.ToolApprovalStatus;
 import org.springframework.stereotype.Component;
 
 /**
  * The default Java-based policy evaluator. Implements the 10 default rules from
- * PROJECT_PLAN.md section 10, evaluated in order — the first matching rule decides
- * the outcome; if none match, database-backed overrides are consulted, and if none of those
- * match either, the request is ALLOWed. Every non-allow outcome carries a human-readable reason
- * (AGENTS.md rule 7).
+ * PROJECT_PLAN.md section 10 plus one added since (rule 11, MCP consent — see below), evaluated
+ * in order — the first matching rule decides the outcome; if none match, database-backed
+ * overrides are consulted, and if none of those match either, the request is ALLOWed. Every
+ * non-allow outcome carries a human-readable reason (AGENTS.md rule 7).
  *
  * Rules 7 and 8 inspect the tool's *response* and can only be evaluated after the call
  * has been forwarded, so they live in {@link #evaluateResponse}, not {@link #evaluateRequest}.
@@ -22,9 +23,11 @@ public class PolicyEngine implements PolicyEvaluator {
     static final int DEFAULT_MAX_PAYLOAD_BYTES = 262_144; // 256 KiB
 
     private final PolicyOverrideRepository overrideRepository;
+    private final McpConsentService mcpConsentService;
 
-    public PolicyEngine(PolicyOverrideRepository overrideRepository) {
+    public PolicyEngine(PolicyOverrideRepository overrideRepository, McpConsentService mcpConsentService) {
         this.overrideRepository = overrideRepository;
+        this.mcpConsentService = mcpConsentService;
     }
 
     @Override
@@ -52,6 +55,9 @@ public class PolicyEngine implements PolicyEvaluator {
             return outcome;
         }
         if ((outcome = denyOversizedPayload(ctx)) != null) {
+            return outcome;
+        }
+        if ((outcome = denyMissingMcpConsent(ctx)) != null) {
             return outcome;
         }
         if ((outcome = evaluateOverrides(ctx)) != null) {
@@ -155,6 +161,28 @@ public class PolicyEngine implements PolicyEvaluator {
                     "request payload (" + ctx.payloadSizeBytes() + " bytes) exceeds the maximum allowed size of "
                             + max + " bytes",
                     "deny-oversized-payload");
+        }
+        return null;
+    }
+
+    /**
+     * Rule 11: for an MCP-backed tool, the calling agent must hold an ACTIVE, unexpired
+     * {@link com.agentshield.mcp.McpConsent} grant scoped to this server (and, if the grant is
+     * that specific, this tool/action category) — the direct confused-deputy fix
+     * (design-mcp-authorization.md §5). A tool being APPROVED is necessary but not sufficient for
+     * MCP-backed tools. Non-MCP tools are unaffected.
+     */
+    PolicyOutcome denyMissingMcpConsent(PolicyEvaluationContext ctx) {
+        if (!ctx.tool().isMcpBacked()) {
+            return null;
+        }
+        boolean hasConsent = mcpConsentService.hasActiveConsent(ctx.agent().getId(), ctx.tool().getMcpServerId(),
+                ctx.tool().getMcpToolName(), ctx.actionCategory());
+        if (!hasConsent) {
+            return new PolicyOutcome(PolicyDecisionType.DENY,
+                    "agent '" + ctx.agent().getName() + "' has no active MCP consent for tool '"
+                            + ctx.tool().getName() + "'",
+                    "deny-missing-mcp-consent");
         }
         return null;
     }

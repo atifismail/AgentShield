@@ -48,4 +48,31 @@ class SecurityConfigIntegrationTest extends AbstractIntegrationTest {
         assertThat(response.getStatusCode()).isNotEqualTo(HttpStatus.CREATED);
         assertThat(agentRepository.findByName(agentName)).isEmpty();
     }
+
+    @Test
+    void anonymousCannotGrantAnMcpConsent() {
+        TestRestTemplate rest = new TestRestTemplate();
+        var response = rest.postForEntity("http://localhost:" + port + "/api/mcp-consents",
+                Map.of("agentId", 1, "mcpServerId", 1), String.class);
+
+        assertThat(response.getStatusCode()).isNotEqualTo(HttpStatus.CREATED);
+    }
+
+    @Test
+    void adminCanListMcpConsents() {
+        TestRestTemplate rest = new TestRestTemplate("admin", "test-only");
+        var response = rest.getForEntity("http://localhost:" + port + "/api/mcp-consents", String.class);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+    }
+
+    @Test
+    void anonymousCannotSetMcpServerAuthConfig() {
+        TestRestTemplate rest = new TestRestTemplate();
+        var response = rest.exchange("http://localhost:" + port + "/api/mcp-servers/1/auth",
+                org.springframework.http.HttpMethod.PATCH,
+                new org.springframework.http.HttpEntity<>(Map.of("authMode", "NONE")), String.class);
+
+        assertThat(response.getStatusCode()).isNotEqualTo(HttpStatus.OK);
+    }
 }

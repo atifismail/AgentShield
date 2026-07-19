@@ -12,3 +12,7 @@ agentshield:
   security:
     default-admin-username: admin
     default-admin-password: test-only
+  mcp:
+    # A fixed, obviously-not-a-real-secret 32-byte key so MCP OAuth token-caching tests can
+    # exercise the encrypted-cache path without every test needing to configure its own.
+    oauth-token-encryption-key: "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="

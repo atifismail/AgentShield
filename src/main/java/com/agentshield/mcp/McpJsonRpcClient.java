@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import java.net.http.HttpClient;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.client.JdkClientHttpRequestFactory;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
@@ -30,6 +31,15 @@ public class McpJsonRpcClient {
     }
 
     public McpRpcResult call(String endpointUrl, String method, JsonNode params) {
+        return call(endpointUrl, method, params, null);
+    }
+
+    /**
+     * @param bearerToken set only for {@link McpAuthMode#OAUTH2} servers — never the calling
+     *                     agent's own gateway token (design-mcp-authorization.md §6.7, no token
+     *                     passthrough in either direction).
+     */
+    public McpRpcResult call(String endpointUrl, String method, JsonNode params, String bearerToken) {
         var validation = outboundEndpointValidator.validate(endpointUrl);
         if (!validation.allowed()) {
             return McpRpcResult.error("blocked by outbound endpoint policy: " + validation.reason());
@@ -41,7 +51,13 @@ public class McpJsonRpcClient {
             request.put("method", method);
             request.set("params", params == null ? objectMapper.createObjectNode() : params);
 
-            var responseEntity = restClient.post().uri(endpointUrl).body(request).retrieve().toEntity(String.class);
+            var responseEntity = restClient.post().uri(endpointUrl)
+                    .headers(headers -> {
+                        if (bearerToken != null) {
+                            headers.set(HttpHeaders.AUTHORIZATION, "Bearer " + bearerToken);
+                        }
+                    })
+                    .body(request).retrieve().toEntity(String.class);
             if (responseEntity.getStatusCode().is3xxRedirection()) {
                 return McpRpcResult.error("MCP server returned a redirect; redirects are never followed");
             }

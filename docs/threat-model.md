@@ -44,11 +44,14 @@ Identified by a source-code review (2026-07-19) against current OWASP Agentic AI
 Agentic Skills Top 10, MCP security best practices, MCP authorization guidance, and NIST AI RMF
 guidance. Not yet implemented — tracked here rather than silently assumed covered.
 
-- **MCP confused-deputy risk.** MCP servers are discovered and invoked (§6 above covers the tool
-  registry acting as an allowlist), but there's no per-client consent model, no OAuth token
-  audience/scope validation, and no way to require explicit approval before a new MCP client
-  reuses an existing server's access. A malicious or compromised MCP client could currently ride
-  on another client's established trust.
+- ~~**MCP confused-deputy risk.**~~ Addressed: every MCP-backed tool call now requires an
+  explicit, ADMIN/SECURITY_ANALYST-granted `McpConsent` for the calling agent (scoped to the MCP
+  server, and optionally a specific tool/action category), checked before any OAuth token is
+  requested — see `docs/policy-guide.md` rule 11, `docs/api.md` (MCP consents), and
+  `docs/architecture.md`. OAuth 2.1 token audience/issuer/expiry/scope validation is implemented
+  for servers with `authMode: OAUTH2`, and wrong-audience/wrong-issuer tokens are rejected and
+  never cached. Local/stdio credential brokering is designed but not yet implemented, pending
+  stdio transport support itself (still a gap, tracked below under weak local-tool isolation).
 - **Tool/skill supply-chain provenance.** §1 (tool poisoning) covers detecting drift after the
   fact via fingerprint hashing, but there's no signature or checksum verification at
   registration time, no trusted-publisher metadata, and no pinning of external instruction URLs

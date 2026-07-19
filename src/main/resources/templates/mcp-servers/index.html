@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{layout/fragments :: head(title='MCP Servers')}"></head>
+<body>
+<nav th:replace="~{layout/fragments :: navbar}"></nav>
+<main class="container-fluid py-4">
+    <h1 class="h3 mb-3">MCP Servers</h1>
+    <div id="alertHost"></div>
+
+    <div class="row g-3">
+        <div class="col-lg-7">
+            <div class="card">
+                <div class="card-header">Registered servers</div>
+                <div class="card-body">
+                    <table class="table table-hover align-middle data-table" id="serversTable">
+                        <thead>
+                        <tr><th>Name</th><th>Transport</th><th>Auth mode</th><th>Tool group</th><th>Last discovered</th><th>Actions</th></tr>
+                        </thead>
+                        <tbody>
+                        <tr th:each="s : ${servers}" th:attr="data-server-id=${s.id}">
+                            <td th:text="${s.name}">my-mcp-server</td>
+                            <td th:text="${s.transportType}">HTTP</td>
+                            <td><span class="badge" th:classappend="${s.authMode.name() == 'NONE'} ? 'status-badge-pending' : 'status-badge-approved'" th:text="${s.authMode}">NONE</span></td>
+                            <td th:text="${s.toolGroup}">mcp</td>
+                            <td th:text="${s.lastDiscoveredAt != null ? #temporals.format(s.lastDiscoveredAt, 'yyyy-MM-dd HH:mm') : 'never'}">-</td>
+                            <td>
+                                <button type="button" class="btn btn-sm btn-outline-primary btn-discover">Discover</button>
+                            </td>
+                        </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-5">
+            <div class="card">
+                <div class="card-header">Register a server</div>
+                <div class="card-body">
+                    <form id="registerServerForm">
+                        <div class="mb-2">
+                            <label class="form-label small">Name</label>
+                            <input type="text" class="form-control form-control-sm" name="name" required/>
+                        </div>
+                        <div class="mb-2">
+                            <label class="form-label small">Transport</label>
+                            <select class="form-select form-select-sm" name="transportType">
+                                <option th:each="t : ${transportTypes}" th:value="${t}" th:text="${t}"></option>
+                            </select>
+                        </div>
+                        <div class="mb-2">
+                            <label class="form-label small">Endpoint URL (HTTP transport)</label>
+                            <input type="text" class="form-control form-control-sm" name="endpointUrl" placeholder="https://mcp.example.com/mcp"/>
+                        </div>
+                        <div class="mb-2">
+                            <label class="form-label small">Owner</label>
+                            <input type="text" class="form-control form-control-sm" name="owner"/>
+                        </div>
+                        <div class="mb-2">
+                            <label class="form-label small">Environment</label>
+                            <input type="text" class="form-control form-control-sm" name="environment" placeholder="DEV"/>
+                        </div>
+                        <div class="mb-2">
+                            <label class="form-label small">Tool group</label>
+                            <input type="text" class="form-control form-control-sm" name="toolGroup" placeholder="mcp"/>
+                        </div>
+                        <button type="submit" class="btn btn-sm btn-primary">Register</button>
+                    </form>
+                </div>
+            </div>
+            <div class="card mt-3">
+                <div class="card-header">Configure OAuth for a server</div>
+                <div class="card-body">
+                    <p class="text-secondary small">Sets how AgentShield authenticates itself to the MCP server — separate from agent consent below.</p>
+                    <form id="authForm">
+                        <div class="mb-2">
+                            <label class="form-label small">Server ID</label>
+                            <input type="number" class="form-control form-control-sm" name="mcpServerId" required/>
+                        </div>
+                        <div class="mb-2">
+                            <label class="form-label small">Auth mode</label>
+                            <select class="form-select form-select-sm" name="authMode">
+                                <option th:each="m : ${authModes}" th:value="${m}" th:text="${m}"></option>
+                            </select>
+                        </div>
+                        <div class="mb-2">
+                            <label class="form-label small">Issuer URL</label>
+                            <input type="text" class="form-control form-control-sm" name="oauthIssuer"/>
+                        </div>
+                        <div class="mb-2">
+                            <label class="form-label small">Resource (audience)</label>
+                            <input type="text" class="form-control form-control-sm" name="oauthResource"/>
+                        </div>
+                        <div class="mb-2">
+                            <label class="form-label small">Client ID</label>
+                            <input type="text" class="form-control form-control-sm" name="oauthClientId"/>
+                        </div>
+                        <div class="mb-2">
+                            <label class="form-label small">Client secret reference (env var name)</label>
+                            <input type="text" class="form-control form-control-sm" name="oauthClientSecretRef"/>
+                        </div>
+                        <div class="mb-2">
+                            <label class="form-label small">Scopes (space-separated)</label>
+                            <input type="text" class="form-control form-control-sm" name="oauthScopes"/>
+                        </div>
+                        <button type="submit" class="btn btn-sm btn-primary">Save auth config</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-3 mt-1">
+        <div class="col-lg-7">
+            <div class="card">
+                <div class="card-header">MCP consents</div>
+                <div class="card-body">
+                    <p class="text-secondary small">
+                        The confused-deputy control: an MCP-backed tool being APPROVED is not enough on its own —
+                        the calling agent must also hold an active consent grant for the MCP server (optionally
+                        scoped to a specific tool and/or action category). No grant, no call.
+                    </p>
+                    <table class="table table-hover align-middle data-table" id="consentsTable">
+                        <thead>
+                        <tr><th>Status</th><th>Agent</th><th>MCP server</th><th>Tool</th><th>Category</th><th>Granted by</th><th>Expires</th><th>Actions</th></tr>
+                        </thead>
+                        <tbody>
+                        <tr th:each="c : ${consents}" th:attr="data-consent-id=${c.id}">
+                            <td><span class="badge" th:classappend="'status-badge-' + ${#strings.toLowerCase(c.status)}" th:text="${c.status}">ACTIVE</span></td>
+                            <td th:text="${c.agentName}">agent-01</td>
+                            <td th:text="${c.mcpServerName}">server</td>
+                            <td th:text="${c.toolName} ?: 'any'">any</td>
+                            <td th:text="${c.actionCategory} ?: 'any'">any</td>
+                            <td th:text="${c.grantedBy}">admin</td>
+                            <td th:text="${c.expiresAt != null ? #temporals.format(c.expiresAt, 'yyyy-MM-dd HH:mm') : 'never'}">never</td>
+                            <td>
+                                <button type="button" class="btn btn-sm btn-outline-danger btn-consent-revoke" th:if="${c.status.name() == 'ACTIVE'}">Revoke</button>
+                            </td>
+                        </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-5">
+            <div class="card">
+                <div class="card-header">Grant a consent</div>
+                <div class="card-body">
+                    <form id="grantConsentForm">
+                        <div class="mb-2">
+                            <label class="form-label small">Agent</label>
+                            <select class="form-select form-select-sm" name="agentId" required>
+                                <option th:each="a : ${agents}" th:value="${a.id}" th:text="${a.name}"></option>
+                            </select>
+                        </div>
+                        <div class="mb-2">
+                            <label class="form-label small">MCP server</label>
+                            <select class="form-select form-select-sm" name="mcpServerId" required>
+                                <option th:each="s : ${servers}" th:value="${s.id}" th:text="${s.name}"></option>
+                            </select>
+                        </div>
+                        <div class="mb-2">
+                            <label class="form-label small">Tool name (blank = any)</label>
+                            <input type="text" class="form-control form-control-sm" name="toolName"/>
+                        </div>
+                        <div class="mb-2">
+                            <label class="form-label small">Action category (blank = any)</label>
+                            <select class="form-select form-select-sm" name="actionCategory">
+                                <option value="">any</option>
+                                <option th:each="c : ${actionCategories}" th:value="${c}" th:text="${c}"></option>
+                            </select>
+                        </div>
+                        <div class="mb-2">
+                            <label class="form-label small">Expires at (blank = never)</label>
+                            <input type="datetime-local" class="form-control form-control-sm" name="expiresAt"/>
+                        </div>
+                        <button type="submit" class="btn btn-sm btn-primary">Grant consent</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</main>
+<div th:replace="~{layout/fragments :: scripts}"></div>
+<script th:src="@{/js/mcp-servers.js}"></script>
+</body>
+</html>
