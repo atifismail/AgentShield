@@ -4,6 +4,7 @@ import com.agentshield.mcp.McpDtos.DiscoveryResponse;
 import com.agentshield.mcp.McpDtos.McpServerResponse;
 import com.agentshield.mcp.McpDtos.RegisterMcpServerRequest;
 import com.agentshield.tool.Tool;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import java.util.List;
 import org.springframework.http.HttpStatus;
@@ -17,6 +18,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/api/mcp-servers")
+@Tag(name = "MCP servers", description = "Registers MCP servers and discovers their tools via JSON-RPC; discovered tools flow into the same tool registry/approval/gateway pipeline as plain HTTP tools.")
 public class McpServerController {
 
     private final McpDiscoveryService discoveryService;

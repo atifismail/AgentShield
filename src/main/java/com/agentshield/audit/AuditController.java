@@ -2,6 +2,7 @@ package com.agentshield.audit;
 
 import com.agentshield.audit.AuditIntegrityService.VerificationResult;
 import com.agentshield.common.AuditSeverity;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import java.time.Instant;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -14,6 +15,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/api/audit")
+@Tag(name = "Audit", description = "The tamper-evident, hash-chained audit trail every gateway request writes to. Search, correlation timelines, and chain integrity verification.")
 public class AuditController {
 
     private final AuditEventRepository repository;

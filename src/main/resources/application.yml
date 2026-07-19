@@ -37,6 +37,14 @@ management:
     readinessstate:
       enabled: true
 
+springdoc:
+  api-docs:
+    enabled: true
+    path: /v3/api-docs
+  swagger-ui:
+    enabled: true
+    path: /swagger-ui.html
+
 agentshield:
   security:
     default-admin-username: ${AGENTSHIELD_ADMIN_USER:admin}

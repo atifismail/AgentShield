@@ -5,6 +5,7 @@ import com.agentshield.tool.ToolDtos.RegisterToolRequest;
 import com.agentshield.tool.ToolDtos.ToolResponse;
 import com.agentshield.tool.ToolDtos.ToolVersionResponse;
 import com.agentshield.tool.ToolDtos.UpdateToolFingerprintRequest;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import java.util.List;
 import org.springframework.http.HttpStatus;
@@ -18,6 +19,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/api/tools")
+@Tag(name = "Tools", description = "Tool registry: registration, schema/description fingerprinting, drift detection, and approval.")
 public class ToolController {
 
     private final ToolService toolService;

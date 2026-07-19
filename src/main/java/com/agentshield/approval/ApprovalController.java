@@ -2,6 +2,7 @@ package com.agentshield.approval;
 
 import com.agentshield.approval.ApprovalDtos.ApprovalDecisionRequest;
 import com.agentshield.approval.ApprovalDtos.ApprovalResponse;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import java.util.List;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -14,6 +15,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/api/approvals")
+@Tag(name = "Approvals", description = "Human-in-the-loop queue for actions policy marked APPROVAL_REQUIRED; approving executes the call immediately.")
 public class ApprovalController {
 
     private final ApprovalService approvalService;

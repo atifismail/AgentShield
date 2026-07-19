@@ -6,6 +6,7 @@ import com.agentshield.agent.AgentDtos.CreateAgentRequest;
 import com.agentshield.agent.AgentDtos.CreateCredentialRequest;
 import com.agentshield.agent.AgentDtos.CredentialResponse;
 import com.agentshield.agent.AgentDtos.UpdateAgentRequest;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import java.time.Duration;
 import java.util.List;
@@ -23,6 +24,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/api/agents")
+@Tag(name = "Agents", description = "Agent registry: registration, enable/disable, allowed tool groups, and bearer-token credential lifecycle.")
 public class AgentController {
 
     private final AgentService agentService;

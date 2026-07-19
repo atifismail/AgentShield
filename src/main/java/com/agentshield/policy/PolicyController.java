@@ -4,6 +4,7 @@ import com.agentshield.policy.PolicyDtos.CreateVersionRequest;
 import com.agentshield.policy.PolicyDtos.DryRunRequest;
 import com.agentshield.policy.PolicyDtos.DryRunResponse;
 import com.agentshield.policy.PolicyDtos.PolicyResponse;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import java.util.List;
 import org.springframework.http.HttpStatus;
@@ -17,6 +18,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/api/policies")
+@Tag(name = "Policies", description = "Versioned policy definitions and the dry-run endpoint for testing a hypothetical request before enabling a change.")
 public class PolicyController {
 
     private final PolicyService policyService;

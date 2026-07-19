@@ -46,6 +46,12 @@ public class SecurityConfig {
         http.authorizeHttpRequests(auth -> {
             auth.requestMatchers("/css/**", "/js/**", "/vendor/**", "/login").permitAll();
             auth.requestMatchers("/actuator/health/**", "/actuator/prometheus", "/actuator/info").permitAll();
+            // No-op when springdoc.api-docs.enabled/swagger-ui.enabled are false (prod default,
+            // improvement_plan.md #13) — springdoc doesn't register the underlying controllers at
+            // all in that case, so an anonymous request gets this app's usual unmapped-path
+            // response (401, not 404 — Spring Security re-secures the internal /error forward,
+            // same as any other nonexistent path here) rather than the docs themselves.
+            auth.requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll();
             auth.requestMatchers("/api/gateway/**").permitAll();
             if (demoProfileActive) {
                 auth.requestMatchers("/demo/**").permitAll();

@@ -1,5 +1,10 @@
 # API Reference
 
+An interactive, always-up-to-date version of this reference is served by the application itself:
+`GET /swagger-ui.html` (browsable UI) and `GET /v3/api-docs` (raw OpenAPI JSON). Both are on by
+default; the `prod` profile turns them off unless `AGENTSHIELD_ENABLE_API_DOCS=true` is set, since
+the schema/examples aren't meant for a public audience by default (`docs/operations.md`).
+
 All endpoints are JSON over HTTP. Two authentication modes coexist:
 
 - **Agents** call `POST /api/gateway/invoke` with `Authorization: Bearer <agent-token>` — a

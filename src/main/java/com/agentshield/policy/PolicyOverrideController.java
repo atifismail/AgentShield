@@ -2,6 +2,7 @@ package com.agentshield.policy;
 
 import com.agentshield.policy.PolicyOverrideDtos.CreateOverrideRequest;
 import com.agentshield.policy.PolicyOverrideDtos.OverrideResponse;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import java.util.List;
 import org.springframework.http.HttpStatus;
@@ -17,6 +18,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/api/policy-overrides")
+@Tag(name = "Policy overrides", description = "Database-backed rules layered on top of the fixed default policy, evaluated last, without redeploying code.")
 public class PolicyOverrideController {
 
     private final PolicyOverrideService service;

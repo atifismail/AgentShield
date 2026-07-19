@@ -45,6 +45,7 @@ All runtime configuration is environment-variable driven (see `src/main/resource
 | `AGENTSHIELD_PORT` | HTTP port | `8080` |
 | `AGENTSHIELD_ADMIN_USER` | Bootstrap admin username | `admin` |
 | `AGENTSHIELD_ADMIN_PASSWORD` | Bootstrap admin password | `changeit` — **change this before any non-local use** |
+| `AGENTSHIELD_ENABLE_API_DOCS` | Turns on `/swagger-ui.html` + `/v3/api-docs` under the `prod` profile | `false` (always on outside `prod`) |
 
 ## Database migrations
 

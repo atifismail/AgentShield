@@ -2,6 +2,7 @@ package com.agentshield.incident;
 
 import com.agentshield.common.IncidentStatus;
 import com.agentshield.common.ResourceNotFoundException;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
 import org.springframework.data.domain.Page;
@@ -16,6 +17,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/api/incidents")
+@Tag(name = "Incidents", description = "Records created from critical detector findings (secret leak, prompt injection, blocked destructive action) with an investigation workflow.")
 public class IncidentController {
 
     private final IncidentRepository repository;

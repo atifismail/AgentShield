@@ -12,6 +12,15 @@ server:
         secure: true
         http-only: true
 
+# Off by default in production (improvement_plan.md #13) — the schema/UI can reveal internal
+# route shapes and example payloads that aren't meant for a public audience. An operator who
+# wants it anyway (e.g. an internal-only deployment) can set AGENTSHIELD_ENABLE_API_DOCS=true.
+springdoc:
+  api-docs:
+    enabled: ${AGENTSHIELD_ENABLE_API_DOCS:false}
+  swagger-ui:
+    enabled: ${AGENTSHIELD_ENABLE_API_DOCS:false}
+
 management:
   endpoints:
     web:
