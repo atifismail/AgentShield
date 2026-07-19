@@ -21,9 +21,19 @@ public class IncidentService {
 
     public Incident createFromFinding(String title, String summary, Long relatedAuditEventId,
             Long relatedGatewayRequestId) {
+        return create(title, AuditSeverity.CRITICAL, summary, relatedAuditEventId, relatedGatewayRequestId);
+    }
+
+    /** Lower-severity counterpart for unusual-but-allowed behavior, not a confirmed policy violation. */
+    public Incident createWarning(String title, String summary, Long relatedAuditEventId, Long relatedGatewayRequestId) {
+        return create(title, AuditSeverity.WARNING, summary, relatedAuditEventId, relatedGatewayRequestId);
+    }
+
+    private Incident create(String title, AuditSeverity severity, String summary, Long relatedAuditEventId,
+            Long relatedGatewayRequestId) {
         Incident incident = new Incident();
         incident.setTitle(title);
-        incident.setSeverity(AuditSeverity.CRITICAL);
+        incident.setSeverity(severity);
         incident.setStatus(IncidentStatus.OPEN);
         incident.setSummary(summary);
         incident.setRelatedAuditEventId(relatedAuditEventId);

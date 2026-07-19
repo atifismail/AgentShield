@@ -6,6 +6,7 @@ import com.agentshield.agent.AgentCredentialRepository;
 import com.agentshield.approval.ApprovalRequest;
 import com.agentshield.approval.ApprovalRequestRepository;
 import com.agentshield.audit.AuditService;
+import com.agentshield.behavior.BehaviorBaselineService;
 import com.agentshield.common.ActionCategory;
 import com.agentshield.common.ActorType;
 import com.agentshield.common.AuditSeverity;
@@ -68,6 +69,7 @@ public class GatewayService {
     private final ToolForwarder toolForwarder;
     private final AuditService auditService;
     private final IncidentService incidentService;
+    private final BehaviorBaselineService behaviorBaselineService;
     private final ObjectMapper objectMapper;
     private final GatewayToolResponseRepository toolResponseRepository;
     private final RawResponseEncryptor rawResponseEncryptor;
@@ -79,7 +81,8 @@ public class GatewayService {
             GatewayRequestRepository gatewayRequestRepository, PolicyDecisionRepository policyDecisionRepository,
             ApprovalRequestRepository approvalRequestRepository, PolicyEngine policyEngine, RiskScorer riskScorer,
             PromptInjectionDetector injectionDetector, SecretDetector secretDetector, ToolForwarder toolForwarder,
-            AuditService auditService, IncidentService incidentService, ObjectMapper objectMapper,
+            AuditService auditService, IncidentService incidentService, BehaviorBaselineService behaviorBaselineService,
+            ObjectMapper objectMapper,
             GatewayToolResponseRepository toolResponseRepository, RawResponseEncryptor rawResponseEncryptor,
             GatewayMetrics metrics,
             @Value("${agentshield.gateway.max-payload-bytes:262144}") int maxPayloadBytes,
@@ -96,6 +99,7 @@ public class GatewayService {
         this.toolForwarder = toolForwarder;
         this.auditService = auditService;
         this.incidentService = incidentService;
+        this.behaviorBaselineService = behaviorBaselineService;
         this.objectMapper = objectMapper;
         this.toolResponseRepository = toolResponseRepository;
         this.rawResponseEncryptor = rawResponseEncryptor;
@@ -155,6 +159,8 @@ public class GatewayService {
         String inputJson = writeJsonSafely(request.input());
         int payloadBytes = inputJson.getBytes(StandardCharsets.UTF_8).length;
         boolean firstTimePair = !gatewayRequestRepository.existsByAgentIdAndToolId(agent.getId(), tool.getId());
+        boolean firstTimeCombination = !gatewayRequestRepository.existsByAgentIdAndToolIdAndActionCategoryAndTargetEnvironment(
+                agent.getId(), tool.getId(), request.actionCategory(), request.targetEnvironment());
 
         GatewayRequest gatewayRequest = persistRequest(correlationId, agent, tool, request, inputJson);
 
@@ -192,6 +198,7 @@ public class GatewayService {
                 "policy decision " + policyOutcome.decision() + " [" + policyOutcome.ruleId() + "]: "
                         + policyOutcome.reason(),
                 Map.of("riskScore", riskAssessment.score(), "riskLevel", riskAssessment.level().name()));
+        behaviorBaselineService.evaluate(gatewayRequest, firstTimeCombination);
 
         return switch (policyOutcome.decision()) {
             case DENY -> {

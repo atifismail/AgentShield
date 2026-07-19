@@ -16,4 +16,7 @@ public interface PolicyDecisionRepository extends JpaRepository<PolicyDecision, 
 
     List<PolicyDecision> findByDecisionAndCreatedAtBetweenOrderByCreatedAtDesc(
             com.agentshield.common.PolicyDecisionType decision, Instant from, Instant to);
+
+    long countByGatewayRequest_AgentIdAndDecisionAndCreatedAtAfter(Long agentId,
+            com.agentshield.common.PolicyDecisionType decision, Instant since);
 }
