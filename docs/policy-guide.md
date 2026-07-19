@@ -25,6 +25,27 @@ conservative MVP choice (the safest default for the highest-risk action/environm
 an approvable path for pre-authorized destructive maintenance windows is a roadmap item, not
 something to work around by weakening this rule.
 
+## Policy override precedence
+
+Beyond the 10 fixed rules above, an ADMIN/SECURITY_ANALYST can add database-backed policy
+overrides (`POST /api/policy-overrides`) — scoped by any combination of action category,
+environment, tool group, and agent, each with its own decision and reason. Evaluation order is
+strict and cannot be changed at runtime:
+
+1. **The 10 fixed rules run first, unconditionally, in the order listed above.** The first one
+   that matches decides the outcome and evaluation stops right there.
+2. **Only if none of the fixed rules match** does the engine consult active overrides, in
+   priority order. The first matching override decides the outcome.
+3. **Only if no override matches either** is the request ALLOWed.
+
+This means an override can add *extra* restriction (deny something the fixed rules would have
+allowed) or grant a scoped extra allowance for a gap the fixed rules leave open — but it can
+never weaken or bypass a fixed rule, since those are checked first and always win. For example,
+an override cannot un-deny a production destructive action (rule 4) or re-allow a drifted tool
+(rule 3); it can only ever affect the space of requests all 10 fixed rules would otherwise ALLOW.
+Use `POST /api/policies/dry-run` to test a hypothetical request against the full evaluation order
+above (fixed rules, then active overrides) before relying on a policy or override change.
+
 ## Risk scoring
 
 Risk is scored deterministically, not with a model:

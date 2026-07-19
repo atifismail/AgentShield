@@ -7,12 +7,14 @@ AgentShield is a runtime security gateway for AI agents. It sits between agents 
 ## What it does
 
 - **Gateway** — every agent tool call is routed through a single `/api/gateway/invoke` endpoint that decides ALLOW, DENY, or APPROVAL_REQUIRED.
-- **Tool registry** — fingerprints tool schemas/descriptions and blocks a tool the moment it drifts from its last-approved version.
-- **Policy engine** — a versioned, testable rule set (least privilege, environment-aware, approval-gated) with a human-readable reason on every decision.
-- **Risk engine** — deterministic scoring by action category, environment, tool trust state, and detector hits.
-- **Detectors** — deterministic prompt-injection and secret-pattern scanning of tool responses, no paid API required.
-- **Approval workflow** — high-risk actions queue for human sign-off instead of executing blind.
-- **Audit trail** — every request produces a searchable, correlated audit record.
+- **Tool registry** — fingerprints tool schemas/descriptions and blocks a tool the moment it drifts from its last-approved version; MCP servers are discovered into the same registry.
+- **Policy engine** — a versioned, testable rule set (least privilege, environment-aware, approval-gated), plus database-backed overrides for operator-added rules without a code change.
+- **Risk engine** — deterministic scoring by action category, environment, tool trust state, and detector confidence/category.
+- **Detectors** — deterministic prompt-injection and secret-pattern scanning of tool responses, with confidence levels and categories, no paid API required.
+- **Approval workflow** — high-risk actions queue for human sign-off; approving executes the action immediately, with row-level locking so a duplicate approval can't execute it twice.
+- **Response forensics** — every tool response gets a hashed, sanitized forensic record (raw body retained only if explicitly enabled and encrypted).
+- **Audit trail** — every request produces a searchable, correlated, tamper-evident (hash-chained) audit record.
+- **Metrics & docs** — Prometheus-format metrics at `/actuator/prometheus`, interactive API docs at `/swagger-ui.html`.
 
 See `docs/architecture.md` and `docs/threat-model.md` for the full design and the specific risks each control addresses.
 
@@ -29,7 +31,7 @@ docker compose up
 # Or run against a local PostgreSQL
 ./gradlew bootRun
 
-# Run the test suite (H2, no external dependencies)
+# Run the test suite (real MariaDB via Testcontainers — needs a running Docker daemon)
 ./gradlew test
 ```
 
@@ -47,7 +49,13 @@ Then open `http://localhost:8080` for the dashboard.
 
 ## Project status
 
-Early-stage, MVP scope. See the roadmap issues for what's next.
+Past MVP: the core gateway, policy/risk/detection engines, approval workflow, tamper-evident
+audit trail, agent token lifecycle, tool drift detection, MCP tool discovery, response forensics,
+production hardening, and OpenAPI docs are implemented and tested (unit, integration, and
+negative-security-path coverage) against both PostgreSQL and MariaDB. `docs/threat-model.md`
+tracks known gaps not yet covered — notably MCP client consent/authorization, tool/skill
+supply-chain provenance (signing/pinning), and local-tool sandboxing — which are the current
+priorities. See the roadmap issues for what's next.
 
 ## License
 

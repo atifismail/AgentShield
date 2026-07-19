@@ -57,6 +57,21 @@ Never modify a migration that has already been applied to a shared environment �
 instead. `spring.jpa.hibernate.ddl-auto` is fixed at `validate`; Hibernate will refuse to start
 if the schema and entities disagree, which is intentional.
 
+## Agent token rotation
+
+Agents authenticate with a bearer token whose SHA-256 hash is the only thing stored — the
+plaintext is returned exactly once, at issuance. To rotate without downtime:
+
+1. `POST /api/agents/{id}/credentials` (body `{"validForMinutes": <optional>}`) issues a new
+   credential alongside the existing one and returns its plaintext token.
+2. Update the agent's deployed configuration to use the new token.
+3. `POST /api/agents/{id}/credentials/{credentialId}/revoke` on the old credential once you've
+   confirmed the agent is using the new one.
+
+`POST /api/agents/{id}/rotate-token` does all of this in one call — revokes every active
+credential for the agent and issues a single new one — for the case where you don't need an
+overlap window (e.g. responding to a suspected leak). Both paths are ADMIN-only and audited.
+
 ## Backup and restore
 
 The only durable state is the PostgreSQL database. Standard `pg_dump`/`pg_restore` (or your managed Postgres provider's snapshot mechanism) is sufficient:

@@ -61,6 +61,23 @@ Requires `curl` and `jq`. It exercises, in order:
 After running it, open the **Audit** and **Incidents** pages in the UI (default admin login —
 see `docs/operations.md`) to see the full trail each scenario left behind, correlated by request.
 
+## Risk mapping
+
+Each attack scenario demonstrates a control against a specific, named risk category
+(`docs/threat-model.md` has the full writeup of each):
+
+| Scenario | Risk category | Control that blocks/detects it |
+|---|---|---|
+| 1. Tool schema drift | OWASP Agentic Skills Top 10 — supply-chain compromise / update drift; threat-model §1 Tool poisoning | Fingerprint hash comparison, `deny-schema-drift` policy rule |
+| 2. PROD destructive action | OWASP Agentic AI Top 10 — excessive agency; threat-model §2 Excessive agency | `deny-prod-destructive-without-approval` policy rule (no approval path for this category by design) |
+| 3. Secret-like response | OWASP LLM Top 10 — sensitive information disclosure; threat-model §4 Prompt and response injection | `SecretDetector` + `deny-secret-external-transfer` policy rule |
+| 4. Prompt-injected response | OWASP LLM Top 10 — prompt injection; OWASP Agentic AI Top 10 — agent behavior hijacking; threat-model §4 | `PromptInjectionDetector` + `deny-prompt-injection-response` policy rule |
+| 5. External transfer approval | OWASP Agentic AI Top 10 — excessive agency (human-in-the-loop); threat-model §2 | `require-approval-external-transfer` policy rule, approval workflow |
+
+`docs/threat-model.md` also tracks known gaps not yet covered by a demo scenario — MCP
+confused-deputy risk, tool/skill supply-chain provenance (signing/pinning), and weak local-tool
+isolation — see its "Known gaps" section.
+
 ## Running it by hand
 
 Every step above is a single `POST /api/gateway/invoke` call — see `docs/api.md` for the exact

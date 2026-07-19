@@ -38,6 +38,30 @@ AgentShield exists to address six specific risks that show up once AI agents are
 
 **Control:** the tool registry acts as an explicit allowlist. An unregistered or unapproved tool cannot be called through the gateway at all.
 
+## Known gaps
+
+Identified by a source-code review (2026-07-19) against current OWASP Agentic AI Top 10, OWASP
+Agentic Skills Top 10, MCP security best practices, MCP authorization guidance, and NIST AI RMF
+guidance. Not yet implemented — tracked here rather than silently assumed covered.
+
+- **MCP confused-deputy risk.** MCP servers are discovered and invoked (§6 above covers the tool
+  registry acting as an allowlist), but there's no per-client consent model, no OAuth token
+  audience/scope validation, and no way to require explicit approval before a new MCP client
+  reuses an existing server's access. A malicious or compromised MCP client could currently ride
+  on another client's established trust.
+- **Tool/skill supply-chain provenance.** §1 (tool poisoning) covers detecting drift after the
+  fact via fingerprint hashing, but there's no signature or checksum verification at
+  registration time, no trusted-publisher metadata, and no pinning of external instruction URLs
+  by content hash — so a tool can still be *approved* while already compromised, not just drift
+  after approval.
+- **Weak local-tool isolation.** Tool execution (HTTP or MCP) has no per-tool filesystem,
+  environment-variable, or outbound-network allowlist, and no resource/timeout limits beyond the
+  gateway's own outbound-endpoint validation (§6, `docs/api.md`). A future local/stdio MCP
+  execution mode in particular needs this before it can be considered safe by default.
+- **Governance evidence export.** §5 (poor auditability) covers the raw audit trail, but there's
+  no mapping of AgentShield's controls to a governance framework (e.g. NIST AI RMF's
+  govern/map/measure/manage functions) or an exportable evidence report for compliance review.
+
 ## Non-goals
 
 AgentShield is not a SIEM replacement, not a full DLP platform, not a general chatbot, and not an antivirus or broad cloud security suite. It focuses specifically on the boundary between an agent and the tools it calls.

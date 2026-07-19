@@ -66,6 +66,7 @@ the original request.
 | PUT | `/api/agents/{id}` | ADMIN | Update description/owner/environment/allowed groups |
 | POST | `/api/agents/{id}/enable` | ADMIN | Re-enable |
 | POST | `/api/agents/{id}/disable` | ADMIN | Disable (fails closed via policy rule 1) |
+| DELETE | `/api/agents/{id}` | ADMIN | Soft-delete — equivalent to disable; the agent and its history are kept, not removed |
 | POST | `/api/agents/{id}/rotate-token` | ADMIN | Revokes all active credentials and issues a new one. Returns the plaintext token **once** — it is never retrievable again |
 | GET | `/api/agents/{id}/credentials` | ADMIN | List credentials (prefix + status only, never the token) |
 | POST | `/api/agents/{id}/credentials` | ADMIN | Issue a new credential, body `{"validForMinutes": <optional>}`. Returns the plaintext token **once** |
