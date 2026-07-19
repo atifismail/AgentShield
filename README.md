@@ -8,6 +8,7 @@ AgentShield is a runtime security gateway for AI agents. It sits between agents 
 
 - **Gateway** — every agent tool call is routed through a single `/api/gateway/invoke` endpoint that decides ALLOW, DENY, or APPROVAL_REQUIRED.
 - **Tool registry** — fingerprints tool schemas/descriptions and blocks a tool the moment it drifts from its last-approved version; MCP servers are discovered into the same registry, gated by explicit per-agent consent grants (the confused-deputy control) and OAuth 2.1 for servers that require it.
+- **Supply-chain provenance** — every tool version gets an automatic checksum record, plus opt-in Sigstore keyless signature verification (AgentShield only ever verifies — it never signs or holds a private key).
 - **Policy engine** — a versioned, testable rule set (least privilege, environment-aware, approval-gated), plus database-backed overrides for operator-added rules without a code change.
 - **Risk engine** — deterministic scoring by action category, environment, tool trust state, and detector confidence/category.
 - **Detectors** — deterministic prompt-injection and secret-pattern scanning of tool responses, with confidence levels and categories, no paid API required.
@@ -51,11 +52,12 @@ Then open `http://localhost:8080` for the dashboard.
 
 Past MVP: the core gateway, policy/risk/detection engines, approval workflow, tamper-evident
 audit trail, agent token lifecycle, tool drift detection, MCP tool discovery and consent/OAuth
-authorization, response forensics, production hardening, and OpenAPI docs are implemented and
+authorization, tool/skill supply-chain provenance (checksums + opt-in Sigstore signature
+verification), response forensics, production hardening, and OpenAPI docs are implemented and
 tested (unit, integration, and negative-security-path coverage) against both PostgreSQL and
-MariaDB. `docs/threat-model.md` tracks known gaps not yet covered — notably tool/skill
-supply-chain provenance (signing/pinning) and local-tool sandboxing — which are the current
-priorities. See the roadmap issues for what's next.
+MariaDB. `docs/threat-model.md` tracks known gaps not yet covered — notably local-tool
+sandboxing and governance evidence export — which are the current priorities. See the roadmap
+issues for what's next.
 
 ## License
 

@@ -52,11 +52,18 @@ guidance. Not yet implemented — tracked here rather than silently assumed cove
   for servers with `authMode: OAUTH2`, and wrong-audience/wrong-issuer tokens are rejected and
   never cached. Local/stdio credential brokering is designed but not yet implemented, pending
   stdio transport support itself (still a gap, tracked below under weak local-tool isolation).
-- **Tool/skill supply-chain provenance.** §1 (tool poisoning) covers detecting drift after the
-  fact via fingerprint hashing, but there's no signature or checksum verification at
-  registration time, no trusted-publisher metadata, and no pinning of external instruction URLs
-  by content hash — so a tool can still be *approved* while already compromised, not just drift
-  after approval.
+- ~~**Tool/skill supply-chain provenance.**~~ Partially addressed: §1 (tool poisoning) already
+  covered detecting drift after the fact via fingerprint hashing; every tool version now also
+  gets an automatic Level-1 checksum record, and optional Level-2 Sigstore keyless signature
+  verification (in-process, `dev.sigstore:sigstore-java`, never a `cosign` CLI dependency),
+  opt-in per `ToolSourceType` via `agentshield.provenance.require-signature-for` — see
+  `docs/api.md` "Supply-chain provenance" and `docs/operations.md`. AgentShield only ever
+  verifies; it never signs or holds private key material. A failed or revoked signature forces
+  the tool back to `DRIFTED` immediately. **Still open:** trusted-publisher metadata display,
+  pinning of external instruction URLs by content hash (no such URL-fetching mechanism exists
+  yet in this codebase to pin), and provenance for `LOCAL_SKILL`/`REMOTE_PACKAGE` source types
+  (neither has an entity yet — both depend on local/stdio tool execution, itself not
+  implemented — tracked below under weak local-tool isolation).
 - **Weak local-tool isolation.** Tool execution (HTTP or MCP) has no per-tool filesystem,
   environment-variable, or outbound-network allowlist, and no resource/timeout limits beyond the
   gateway's own outbound-endpoint validation (§6, `docs/api.md`). A future local/stdio MCP

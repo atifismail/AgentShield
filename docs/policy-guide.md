@@ -34,6 +34,14 @@ also hold an ACTIVE, unexpired `McpConsent` grant for that MCP server, scoped to
 of tool name and action category (a null-scoped field on the grant means "any"). Grant and manage
 consents at `POST /api/mcp-consents` / the MCP page in the admin UI.
 
+**Note on rule 3 and supply-chain provenance:** rule 3 is also the enforcement point for a failed
+or revoked tool signature (`docs/api.md` "Supply-chain provenance") — a `SIGNATURE_FAILED` or
+`REVOKED` provenance record forces `Tool.approvalStatus` to `DRIFTED` directly, blocking calls
+immediately without waiting for a fingerprint refresh, and reusing this same rule rather than a
+separate one. Whether a *new* approval requires a verified signature at all is a separate,
+earlier check (at `POST /api/tools/{id}/approve` time, not a gateway policy rule) — see
+`docs/operations.md` for the `agentshield.provenance.require-signature-for` trust policy.
+
 ## Policy override precedence
 
 Beyond the 11 fixed rules above, an ADMIN/SECURITY_ANALYST can add database-backed policy

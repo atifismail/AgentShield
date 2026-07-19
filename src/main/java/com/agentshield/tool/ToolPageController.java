@@ -14,10 +14,13 @@ public class ToolPageController {
 
     private final ToolRepository toolRepository;
     private final ToolVersionRepository toolVersionRepository;
+    private final ToolProvenanceService provenanceService;
 
-    public ToolPageController(ToolRepository toolRepository, ToolVersionRepository toolVersionRepository) {
+    public ToolPageController(ToolRepository toolRepository, ToolVersionRepository toolVersionRepository,
+            ToolProvenanceService provenanceService) {
         this.toolRepository = toolRepository;
         this.toolVersionRepository = toolVersionRepository;
+        this.provenanceService = provenanceService;
     }
 
     @GetMapping("/tools")
@@ -35,6 +38,7 @@ public class ToolPageController {
         model.addAttribute("pageTitle", "Tool: " + tool.getName());
         model.addAttribute("tool", tool);
         model.addAttribute("versions", versions);
+        provenanceService.latestForTool(id).ifPresent(p -> model.addAttribute("provenance", p));
 
         if (tool.hasDrift()) {
             Optional<ToolVersion> approved = versions.stream().filter(v -> v.getStatus() == ToolVersionStatus.APPROVED).findFirst();

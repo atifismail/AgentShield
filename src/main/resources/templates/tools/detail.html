@@ -5,12 +5,17 @@
 <nav th:replace="~{layout/fragments :: navbar}"></nav>
 <main class="container-fluid py-4">
     <p><a th:href="@{/tools}">&larr; Back to tools</a></p>
+    <div id="alertHost"></div>
     <div class="d-flex justify-content-between align-items-start mb-3">
         <div>
             <h1 class="h3 mb-1" th:text="${tool.name}">mock-git</h1>
             <span class="badge" th:classappend="'status-badge-' + ${#strings.toLowerCase(tool.approvalStatus)}"
                   th:text="${tool.approvalStatus}">APPROVED</span>
             <span class="badge status-badge-drifted" th:if="${tool.hasDrift()}">DRIFTED</span>
+            <span class="badge" th:if="${provenance != null and provenance.verificationMode.name() == 'SIGNATURE_VERIFIED'}" style="background-color:#198754;">SIGNATURE VERIFIED</span>
+            <span class="badge" th:if="${provenance != null and provenance.verificationMode.name() == 'SIGNATURE_FAILED'}" style="background-color:#dc3545;">SIGNATURE FAILED</span>
+            <span class="badge" th:if="${provenance != null and provenance.verificationMode.name() == 'REVOKED'}" style="background-color:#dc3545;">PROVENANCE REVOKED</span>
+            <span class="badge text-bg-secondary" th:if="${provenance == null or provenance.verificationMode.name() == 'UNVERIFIED' or provenance.verificationMode.name() == 'CHECKSUM_PINNED'}">UNSIGNED</span>
         </div>
     </div>
 
@@ -56,8 +61,50 @@
                 </div>
             </div>
         </div>
+        <div class="col-lg-6">
+            <div class="card">
+                <div class="card-header">Provenance</div>
+                <div class="card-body" th:if="${provenance != null}">
+                    <p>Source type: <span th:text="${tool.sourceType}">CUSTOM_HTTP</span></p>
+                    <p>Verification mode: <span th:text="${provenance.verificationMode}">UNVERIFIED</span></p>
+                    <p>Checksum (<span th:text="${provenance.checksumAlgorithm}">SHA-256</span>): <code class="hash" th:text="${provenance.checksum}">-</code></p>
+                    <p th:if="${provenance.certificateIdentity}">Certificate identity: <code th:text="${provenance.certificateIdentity}"></code></p>
+                    <p th:if="${provenance.certificateIssuer}">Certificate issuer: <code th:text="${provenance.certificateIssuer}"></code></p>
+                    <p th:if="${provenance.verificationDetails}" class="text-secondary small" th:text="${provenance.verificationDetails}"></p>
+                    <button type="button" class="btn btn-sm btn-outline-danger btn-provenance-revoke"
+                            th:if="${provenance.verificationMode.name() == 'SIGNATURE_VERIFIED'}"
+                            th:attr="data-tool-id=${tool.id}">Revoke</button>
+                </div>
+                <div class="card-body" th:if="${provenance == null}">
+                    <p class="text-secondary">No provenance record yet.</p>
+                </div>
+                <div class="card-body border-top">
+                    <p class="text-secondary small">
+                        Submit a <code>cosign sign-blob --bundle</code> artifact to verify this tool's latest
+                        version against a trusted Sigstore keyless identity. AgentShield only ever verifies —
+                        signing always happens in the publisher's own CI.
+                    </p>
+                    <form id="verifySignatureForm" th:attr="data-tool-id=${tool.id}">
+                        <div class="mb-2">
+                            <label class="form-label small">Expected identity (email / CI workflow ref)</label>
+                            <input type="text" class="form-control form-control-sm" name="expectedIdentity"/>
+                        </div>
+                        <div class="mb-2">
+                            <label class="form-label small">Expected issuer</label>
+                            <input type="text" class="form-control form-control-sm" name="expectedIssuer" placeholder="https://token.actions.githubusercontent.com"/>
+                        </div>
+                        <div class="mb-2">
+                            <label class="form-label small">Sigstore bundle JSON</label>
+                            <textarea class="form-control form-control-sm" name="bundleJson" rows="4" required></textarea>
+                        </div>
+                        <button type="submit" class="btn btn-sm btn-primary">Verify signature</button>
+                    </form>
+                </div>
+            </div>
+        </div>
     </div>
 </main>
 <div th:replace="~{layout/fragments :: scripts}"></div>
+<script th:src="@{/js/tools.js}"></script>
 </body>
 </html>

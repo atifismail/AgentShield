@@ -60,6 +60,11 @@ public class Tool {
     @Column(name = "approval_status", nullable = false, length = 32)
     private ToolApprovalStatus approvalStatus = ToolApprovalStatus.PENDING;
 
+    /** Supply-chain trust boundary this tool came from (design-tool-supply-chain-provenance.md §4). */
+    @Enumerated(EnumType.STRING)
+    @Column(name = "source_type", nullable = false, length = 32)
+    private ToolSourceType sourceType = ToolSourceType.CUSTOM_HTTP;
+
     @Column(name = "last_seen_at")
     private Instant lastSeenAt;
 

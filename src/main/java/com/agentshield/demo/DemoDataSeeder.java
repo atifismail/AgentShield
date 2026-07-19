@@ -114,6 +114,7 @@ public class DemoDataSeeder implements ApplicationRunner {
         tool.setApprovedHash(hash);
         tool.setCurrentHash(hash);
         tool.setApprovalStatus(ToolApprovalStatus.APPROVED);
+        tool.setSourceType(com.agentshield.tool.ToolSourceType.BUILT_IN);
         tool.setLastSeenAt(Instant.now());
         toolRepository.save(tool);
     }

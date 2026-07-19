@@ -145,6 +145,28 @@ refusing to start. `oauthClientSecretRef` (set alongside `authMode`) is a refere
 against ordinary Spring configuration (an environment variable of that exact name, or any other
 configured property source) — the plaintext secret itself is never stored in the database.
 
+## Tool/skill supply-chain provenance trust policy
+
+Every tool version gets an automatic Level-1 checksum record; Level 2 (Sigstore signature
+verification, `docs/api.md` "Supply-chain provenance") is opt-in per `ToolSourceType`
+(`BUILT_IN`, `MCP`, `LOCAL_SKILL`, `REMOTE_PACKAGE`, `CUSTOM_HTTP`) via:
+
+```yaml
+agentshield:
+  provenance:
+    require-signature-for: []   # e.g. [MCP, REMOTE_PACKAGE] — empty means Level 1 everywhere
+```
+
+An empty list (the shipped default) means every tool stays at Level 1 (checksum-only) — nothing
+currently approved becomes blocked by upgrading to a version with this feature. An operator opts
+a source type in deliberately, once they're ready to require it; `BUILT_IN` is always exempt
+regardless of this setting. AgentShield never signs anything and holds no private key material —
+it only verifies signatures the tool/skill publisher already produced in their own CI (see
+`docs/api.md` for the exact artifact convention). Self-managed/offline signing keys (rather than
+Sigstore's public keyless infrastructure) are already supported on the *signing* side by cosign's
+existing KMS provider integrations (e.g. `cosign sign-blob --key openbao://mykey`) — this doesn't
+change anything about how AgentShield verifies.
+
 ## Rate limiting and request size
 
 `POST /api/gateway/invoke` is rate-limited per bearer token (falling back to remote address),

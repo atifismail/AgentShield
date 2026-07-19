@@ -23,4 +23,29 @@ $(function () {
         }).done(function () { location.reload(); })
             .fail(function (xhr) { showAlert('Action failed: ' + (xhr.responseJSON ? xhr.responseJSON.error : xhr.statusText), 'danger'); });
     });
+
+    $('#verifySignatureForm').on('submit', function (e) {
+        e.preventDefault();
+        var $form = $(this);
+        var id = $form.data('tool-id');
+        var payload = {
+            bundleJson: $form.find('[name=bundleJson]').val(),
+            expectedIdentity: $form.find('[name=expectedIdentity]').val() || null,
+            expectedIssuer: $form.find('[name=expectedIssuer]').val() || null
+        };
+        $.ajax({url: '/api/tools/' + id + '/provenance/verify', method: 'POST', contentType: 'application/json', data: JSON.stringify(payload)})
+            .done(function () { location.reload(); })
+            .fail(function (xhr) { showAlert('Verification failed: ' + (xhr.responseJSON ? xhr.responseJSON.error : xhr.statusText), 'danger'); });
+    });
+
+    $('.btn-provenance-revoke').on('click', function () {
+        var reason = window.prompt('Reason for revoking this tool\'s provenance:');
+        if (!reason) {
+            return;
+        }
+        var id = $(this).data('tool-id');
+        $.ajax({url: '/api/tools/' + id + '/provenance/revoke', method: 'POST', contentType: 'application/json', data: JSON.stringify({reason: reason})})
+            .done(function () { location.reload(); })
+            .fail(function (xhr) { showAlert('Revoke failed: ' + (xhr.responseJSON ? xhr.responseJSON.error : xhr.statusText), 'danger'); });
+    });
 });

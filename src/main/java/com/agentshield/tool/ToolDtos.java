@@ -40,6 +40,7 @@ public final class ToolDtos {
             String currentHash,
             ToolApprovalStatus approvalStatus,
             boolean drifted,
+            ToolSourceType sourceType,
             Instant lastSeenAt,
             Instant createdAt,
             Instant updatedAt
@@ -48,7 +49,39 @@ public final class ToolDtos {
             return new ToolResponse(tool.getId(), tool.getName(), tool.getType(), tool.getToolGroup(),
                     tool.getEndpointUrl(), tool.getOwner(), tool.getEnvironment(), tool.getDescription(),
                     tool.getApprovedHash(), tool.getCurrentHash(), tool.getApprovalStatus(), tool.hasDrift(),
-                    tool.getLastSeenAt(), tool.getCreatedAt(), tool.getUpdatedAt());
+                    tool.getSourceType(), tool.getLastSeenAt(), tool.getCreatedAt(), tool.getUpdatedAt());
+        }
+    }
+
+    public record VerifySignatureRequest(
+            @NotBlank String bundleJson,
+            String expectedIdentity,
+            String expectedIssuer
+    ) {
+    }
+
+    public record RevokeProvenanceRequest(@NotBlank String reason) {
+    }
+
+    public record ToolProvenanceResponse(
+            Long id,
+            Long toolVersionId,
+            String publisher,
+            String checksumAlgorithm,
+            String checksum,
+            VerificationMode verificationMode,
+            String certificateIdentity,
+            String certificateIssuer,
+            String publicKeyRef,
+            Instant verifiedAt,
+            String verifiedBy,
+            String verificationDetails
+    ) {
+        public static ToolProvenanceResponse from(ToolProvenance p) {
+            return new ToolProvenanceResponse(p.getId(), p.getToolVersion().getId(), p.getPublisher(),
+                    p.getChecksumAlgorithm(), p.getChecksum(), p.getVerificationMode(), p.getCertificateIdentity(),
+                    p.getCertificateIssuer(), p.getPublicKeyRef(), p.getVerifiedAt(), p.getVerifiedBy(),
+                    p.getVerificationDetails());
         }
     }
 

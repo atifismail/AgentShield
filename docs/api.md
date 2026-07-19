@@ -86,8 +86,31 @@ one, update the caller, then revoke the old one).
 | GET | `/api/tools/{id}` | any authenticated | Get one tool |
 | GET | `/api/tools/{id}/versions` | any authenticated | Version/drift history |
 | POST | `/api/tools/{id}/refresh` | ADMIN / TOOL_OWNER | Re-fingerprint schema/description; flips to `DRIFTED` if changed |
-| POST | `/api/tools/{id}/approve` | ADMIN / TOOL_OWNER / SECURITY_ANALYST | Approve the latest detected version |
+| POST | `/api/tools/{id}/approve` | ADMIN / TOOL_OWNER / SECURITY_ANALYST | Approve the latest detected version — rejected if the tool's source type requires a verified signature it doesn't have yet, see below |
 | POST | `/api/tools/{id}/reject` | ADMIN / TOOL_OWNER / SECURITY_ANALYST | Reject the latest detected version |
+| GET | `/api/tools/{id}/provenance` | any authenticated | Latest supply-chain provenance record for the tool |
+| POST | `/api/tools/{id}/provenance/verify` | ADMIN / SECURITY_ANALYST | Submit a signature for verification: `{bundleJson, expectedIdentity, expectedIssuer}` |
+| POST | `/api/tools/{id}/provenance/revoke` | ADMIN / SECURITY_ANALYST | Revoke: `{reason}` — immediately forces the tool to `DRIFTED`, blocking calls |
+
+### Supply-chain provenance
+
+Every tool version automatically gets a Level-1 checksum record (`UNVERIFIED`) at registration,
+MCP discovery, or drift time — no action needed, and nothing about existing behavior changes.
+Level 2 (cryptographic signature verification) is opt-in: an ADMIN/SECURITY_ANALYST submits a
+[`cosign sign-blob --bundle`](https://docs.sigstore.dev/cosign/signing/signing_with_blobs/)
+artifact via `POST /api/tools/{id}/provenance/verify`, verified in-process against Sigstore's
+public trust root (audience-checked against `expectedIdentity`/`expectedIssuer`, the OIDC
+identity/issuer the signing certificate must carry). AgentShield never signs anything itself —
+signing always happens in the tool/skill publisher's own CI; AgentShield only verifies.
+
+The artifact that must be signed is the exact same content already used for fingerprinting
+(`schemaJson` + `description`, concatenated in that order) — the digest checked is derived
+directly from the tool version's own fingerprint hash.
+
+Whether a signature is *required* before approval is controlled by trust policy
+(`agentshield.provenance.require-signature-for`, see `docs/operations.md`) — empty by default,
+so every tool stays at Level 1 until an operator opts a source type in. `BUILT_IN` tools (the
+bundled demo tools) are always exempt, regardless of policy.
 
 ## MCP servers — `/api/mcp-servers`
 

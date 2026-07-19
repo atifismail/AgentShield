@@ -27,14 +27,17 @@ public class ToolService {
     private final AuditService auditService;
     private final OutboundEndpointValidator outboundEndpointValidator;
     private final GatewayMetrics metrics;
+    private final ToolProvenanceService provenanceService;
 
     public ToolService(ToolRepository toolRepository, ToolVersionRepository versionRepository,
-            AuditService auditService, OutboundEndpointValidator outboundEndpointValidator, GatewayMetrics metrics) {
+            AuditService auditService, OutboundEndpointValidator outboundEndpointValidator, GatewayMetrics metrics,
+            ToolProvenanceService provenanceService) {
         this.toolRepository = toolRepository;
         this.versionRepository = versionRepository;
         this.auditService = auditService;
         this.outboundEndpointValidator = outboundEndpointValidator;
         this.metrics = metrics;
+        this.provenanceService = provenanceService;
     }
 
     /** A newly registered tool starts PENDING: it cannot be called until a human approves its first version. */
@@ -59,6 +62,7 @@ public class ToolService {
         String hash = fingerprint(request.schemaJson(), request.description());
         tool.setCurrentHash(hash);
         tool.setApprovalStatus(ToolApprovalStatus.PENDING);
+        tool.setSourceType(ToolSourceType.CUSTOM_HTTP);
         tool.setLastSeenAt(Instant.now());
         tool = toolRepository.save(tool);
 
@@ -68,7 +72,8 @@ public class ToolService {
         version.setDescription(request.description());
         version.setHash(hash);
         version.setStatus(ToolVersionStatus.DETECTED);
-        versionRepository.save(version);
+        version = versionRepository.save(version);
+        provenanceService.recordChecksum(version);
 
         auditService.record(null, "tool.registered", ActorType.USER, tool.getOwner(), null, tool.getId(),
                 AuditSeverity.INFO, "tool '" + tool.getName() + "' registered, pending approval", null);
@@ -100,6 +105,7 @@ public class ToolService {
                     String hash = fingerprint(schemaJson, description);
                     tool.setCurrentHash(hash);
                     tool.setApprovalStatus(ToolApprovalStatus.PENDING);
+                    tool.setSourceType(ToolSourceType.MCP);
                     tool.setLastSeenAt(Instant.now());
                     Tool saved = toolRepository.save(tool);
 
@@ -109,7 +115,8 @@ public class ToolService {
                     version.setDescription(description);
                     version.setHash(hash);
                     version.setStatus(ToolVersionStatus.DETECTED);
-                    versionRepository.save(version);
+                    version = versionRepository.save(version);
+                    provenanceService.recordChecksum(version);
 
                     auditService.record(null, "tool.registered_from_mcp", ActorType.SYSTEM, "mcp-discovery", null,
                             saved.getId(), AuditSeverity.INFO,
@@ -152,7 +159,8 @@ public class ToolService {
             version.setDescription(description);
             version.setHash(hash);
             version.setStatus(ToolVersionStatus.DETECTED);
-            versionRepository.save(version);
+            version = versionRepository.save(version);
+            provenanceService.recordChecksum(version);
 
             auditService.record(null, "tool.drift_detected", ActorType.SYSTEM, null, null, tool.getId(),
                     AuditSeverity.WARNING,
@@ -168,6 +176,8 @@ public class ToolService {
     public Tool approveLatestVersion(Long id, String approvedBy) {
         Tool tool = get(id);
         ToolVersion latest = latestVersion(tool);
+        provenanceService.requireSignatureIfPolicyMandates(tool, latest);
+
         latest.setStatus(ToolVersionStatus.APPROVED);
         latest.setApprovedBy(approvedBy);
         latest.setApprovedAt(Instant.now());
@@ -204,7 +214,7 @@ public class ToolService {
     }
 
     private String fingerprint(String schemaJson, String description) {
-        String content = (schemaJson == null ? "" : schemaJson) + "" + (description == null ? "" : description);
+        String content = (schemaJson == null ? "" : schemaJson) + "" + (description == null ? "" : description);
         return TokenHasher.sha256Hex(content);
     }
 }

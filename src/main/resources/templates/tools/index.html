@@ -21,6 +21,7 @@
                     <th>Name</th>
                     <th>Type</th>
                     <th>Group</th>
+                    <th>Source</th>
                     <th>Approval status</th>
                     <th>Drift</th>
                     <th>Environment</th>
@@ -32,6 +33,7 @@
                     <td><a th:href="@{'/tools/' + ${tool.id}}" th:text="${tool.name}">mock-git</a></td>
                     <td th:text="${tool.type}">GIT</td>
                     <td th:text="${tool.toolGroup}">default</td>
+                    <td th:text="${tool.sourceType}">CUSTOM_HTTP</td>
                     <td>
                         <span class="badge" th:classappend="'status-badge-' + ${#strings.toLowerCase(tool.approvalStatus)}"
                               th:text="${tool.approvalStatus}">PENDING</span>
