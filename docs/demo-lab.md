@@ -57,6 +57,19 @@ Requires `curl` and `jq`. It exercises, in order:
 5. **External transfer requires human approval** — `support-assistant-01` calls
    `exportRecords` on `mock-saas-crm`. It's queued for approval rather than executed
    automatically, demonstrating the approval gate itself.
+6. **Tool misuse is denied** — `support-assistant-01` (allowed only the `saas` tool group) tries
+   to push through `mock-git` (`source-control` group); denied by `deny-tool-outside-allowed-group`
+   before the tool is ever reached.
+7. **Identity and privilege abuse is denied** — `retired-agent-01`'s credential is cryptographically
+   valid (correct token hash) but the agent itself is `DISABLED`; denied by `deny-disabled-agent`
+   regardless of the credential's validity.
+8. **Supply-chain provenance record** — every tool version, including built-in demo tools, gets an
+   automatic Level-1 checksum record on discovery/approval; the script reads it back via
+   `GET /api/tools/{id}/provenance`.
+9. **Unexpected code execution attempt is closed by default** — registering a `STDIO`-transport MCP
+   server (local subprocess execution) is rejected outright in this demo deployment because
+   `agentshield.stdio.enabled` is not set to `true` — the capability doesn't exist unless an
+   operator explicitly turns it on.
 
 After running it, open the **Audit** and **Incidents** pages in the UI (default admin login —
 see `docs/operations.md`) to see the full trail each scenario left behind, correlated by request.
@@ -64,19 +77,31 @@ see `docs/operations.md`) to see the full trail each scenario left behind, corre
 ## Risk mapping
 
 Each attack scenario demonstrates a control against a specific, named risk category
-(`docs/threat-model.md` has the full writeup of each):
+(`docs/threat-model.md` has the full writeup of each). This table also covers
+improvement_plan.md's OWASP Agentic AI attack-scenario checklist explicitly — every category on
+that list is mapped to a concrete scenario or test below, not left implicit:
 
 | Scenario | Risk category | Control that blocks/detects it |
 |---|---|---|
 | 1. Tool schema drift | OWASP Agentic Skills Top 10 — supply-chain compromise / update drift; threat-model §1 Tool poisoning | Fingerprint hash comparison, `deny-schema-drift` policy rule |
 | 2. PROD destructive action | OWASP Agentic AI Top 10 — excessive agency; threat-model §2 Excessive agency | `deny-prod-destructive-without-approval` policy rule (no approval path for this category by design) |
 | 3. Secret-like response | OWASP LLM Top 10 — sensitive information disclosure; threat-model §4 Prompt and response injection | `SecretDetector` + `deny-secret-external-transfer` policy rule |
-| 4. Prompt-injected response | OWASP LLM Top 10 — prompt injection; OWASP Agentic AI Top 10 — agent behavior hijacking; threat-model §4 | `PromptInjectionDetector` + `deny-prompt-injection-response` policy rule |
+| 4. Prompt-injected response | OWASP LLM Top 10 — prompt injection; OWASP Agentic AI Top 10 — **agent goal hijack** / agent behavior hijacking; also demonstrates **memory/context poisoning** (a tool response engineered to alter the agent's downstream behavior, not just this one action) — threat-model §4 | `PromptInjectionDetector` + `deny-prompt-injection-response` policy rule — blocked *before* the content ever reaches the agent's context, so it can't poison anything downstream |
 | 5. External transfer approval | OWASP Agentic AI Top 10 — excessive agency (human-in-the-loop); threat-model §2 | `require-approval-external-transfer` policy rule, approval workflow |
+| 6. Tool misuse | OWASP Agentic AI Top 10 — **tool misuse** | `deny-tool-outside-allowed-group` policy rule |
+| 7. Identity/privilege abuse | OWASP Agentic AI Top 10 — **identity and privilege abuse** | `deny-disabled-agent` policy rule — agent status is checked independently of credential validity |
+| 8. Supply-chain provenance | OWASP Agentic Skills Top 10 — **agentic supply-chain vulnerability** | Automatic Level-1 checksum record per tool version, optional Level-2 Sigstore verification (`docs/api.md` "Supply-chain provenance") |
+| 9. Stdio disabled by default | OWASP Agentic AI Top 10 — **unexpected code execution attempt** | `agentshield.stdio.enabled=false` by default; command allowlist and sandboxing when enabled (`design-stdio-sse-mcp-transport-and-sandboxing.md`) |
+| *(not scripted — see below)* **Resource exhaustion through tool output** | OWASP Agentic AI Top 10 — resource exhaustion | `agentshield.stdio.max-output-bytes` / `agentshield.mcp.sse.max-response-bytes` — a response exceeding the limit aborts the read and closes the connection/process rather than buffering it; proven by `StdioMcpIntegrationTest.outputSizeLimitFailsClosedAndKillsTheProcess` and `McpSseIntegrationTest.oversizedResponseFailsClosed` |
 
-`docs/threat-model.md` also tracks known gaps not yet covered by a demo scenario — MCP
-confused-deputy risk, tool/skill supply-chain provenance (signing/pinning), and weak local-tool
-isolation — see its "Known gaps" section.
+Resource exhaustion isn't a scripted curl scenario because it requires a stdio or SSE MCP server
+that returns an oversized response — there's no bundled demo MCP server for either transport
+(only the plain-HTTP mock tools above), and standing one up just for this walkthrough would add
+more moving parts than the point warrants. The automated test suite exercises the real limit
+against a real subprocess/HTTP connection instead — see the two test names above.
+
+`docs/threat-model.md` also tracks known gaps not yet covered by a demo scenario — see its "Known
+gaps" section for anything not listed here.
 
 ## Running it by hand
 
