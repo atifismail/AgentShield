@@ -76,18 +76,24 @@ $(function () {
             .fail(function (xhr) { showAlert('Revoke failed: ' + (xhr.responseJSON ? xhr.responseJSON.error : xhr.statusText), 'danger'); });
     });
 
-    function refreshStdioStatus($row) {
+    function transportPath($row) {
+        var transport = $row.data('transport');
+        return transport === 'STDIO' ? 'stdio' : (transport === 'SSE' ? 'sse' : null);
+    }
+
+    function refreshTransportStatus($row) {
         var id = $row.data('server-id');
-        var $badge = $row.find('.stdio-status-badge');
-        var $detail = $row.find('.stdio-status-detail');
-        if ($badge.length === 0) {
+        var path = transportPath($row);
+        var $badge = $row.find('.transport-status-badge');
+        var $detail = $row.find('.transport-status-detail');
+        if ($badge.length === 0 || !path) {
             return;
         }
-        $.get('/api/mcp-servers/' + id + '/stdio/status')
+        $.get('/api/mcp-servers/' + id + '/' + path + '/status')
             .done(function (data) {
                 if (data.running) {
                     $badge.removeClass('status-badge-pending status-badge-rejected').addClass('status-badge-approved').text('running');
-                    $detail.text('pid ' + data.pid);
+                    $detail.text(data.pid ? ('pid ' + data.pid) : 'connected');
                 } else {
                     $badge.removeClass('status-badge-pending status-badge-approved').addClass('status-badge-rejected').text('stopped');
                     $detail.text('');
@@ -99,15 +105,19 @@ $(function () {
     }
 
     $('#serversTable tr[data-server-id]').each(function () {
-        refreshStdioStatus($(this));
+        refreshTransportStatus($(this));
     });
 
-    $('#serversTable').on('click', '.btn-stdio-start, .btn-stdio-stop', function () {
+    $('#serversTable').on('click', '.btn-transport-start, .btn-transport-stop', function () {
         var $row = $(this).closest('tr');
         var id = $row.data('server-id');
-        var action = $(this).hasClass('btn-stdio-start') ? 'start' : 'stop';
-        $.post('/api/mcp-servers/' + id + '/stdio/' + action)
-            .done(function () { refreshStdioStatus($row); })
-            .fail(function (xhr) { showAlert('Stdio ' + action + ' failed: ' + (xhr.responseJSON ? xhr.responseJSON.error : xhr.statusText), 'danger'); });
+        var path = transportPath($row);
+        var action = $(this).hasClass('btn-transport-start') ? 'start' : 'stop';
+        if (!path) {
+            return;
+        }
+        $.post('/api/mcp-servers/' + id + '/' + path + '/' + action)
+            .done(function () { refreshTransportStatus($row); })
+            .fail(function (xhr) { showAlert((path === 'stdio' ? 'Stdio ' : 'SSE ') + action + ' failed: ' + (xhr.responseJSON ? xhr.responseJSON.error : xhr.statusText), 'danger'); });
     });
 });

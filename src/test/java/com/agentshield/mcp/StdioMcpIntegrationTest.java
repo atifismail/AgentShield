@@ -16,7 +16,7 @@ import com.agentshield.common.ValidationException;
 import com.agentshield.gateway.GatewayDtos;
 import com.agentshield.mcp.McpConsentDtos.CreateConsentRequest;
 import com.agentshield.mcp.McpDtos.RegisterMcpServerRequest;
-import com.agentshield.mcp.McpDtos.StdioStatusResponse;
+import com.agentshield.mcp.McpDtos.McpTransportStatusResponse;
 import com.agentshield.security.AppUser;
 import com.agentshield.security.AppUserRepository;
 import com.agentshield.security.UserRole;
@@ -277,19 +277,19 @@ class StdioMcpIntegrationTest extends AbstractIntegrationTest {
 
         var startResponse = admin.postForEntity(
                 "http://localhost:" + port + "/api/mcp-servers/" + server.getId() + "/stdio/start", null,
-                StdioStatusResponse.class);
+                McpTransportStatusResponse.class);
         assertThat(startResponse.getStatusCode()).isEqualTo(HttpStatus.OK);
         assertThat(startResponse.getBody().running()).isTrue();
         assertThat(startResponse.getBody().pid()).isNotNull();
 
         var statusResponse = securityAnalystClient().getForEntity(
                 "http://localhost:" + port + "/api/mcp-servers/" + server.getId() + "/stdio/status",
-                StdioStatusResponse.class);
+                McpTransportStatusResponse.class);
         assertThat(statusResponse.getBody().running()).isTrue();
 
         var stopResponse = admin.postForEntity(
                 "http://localhost:" + port + "/api/mcp-servers/" + server.getId() + "/stdio/stop", null,
-                StdioStatusResponse.class);
+                McpTransportStatusResponse.class);
         assertThat(stopResponse.getBody().running()).isFalse();
     }
 

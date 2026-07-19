@@ -28,7 +28,11 @@ MCP Servers / APIs / Databases / Git / Filesystem / Cloud Tools
 
 **Tool registry** (`com.agentshield.tool`) — tracks registered tools (Git, database, filesystem, SaaS, shell, MCP), their declared schema/description, and an approval state. Every time a tool's schema or description is fingerprinted, the hash is compared against the last-approved hash; a mismatch marks the tool as drifted until a human re-approves it. Every tool version also gets a supply-chain provenance record: a Level-1 checksum automatically, and — opt-in per `ToolSourceType` via trust policy — Level-2 Sigstore signature verification (in-process, via `dev.sigstore:sigstore-java`'s `KeylessVerifier`, never the `cosign` CLI). AgentShield only ever verifies signatures the tool/skill publisher produced elsewhere; it never signs anything or holds private key material. A failed or revoked signature forces the tool back to `DRIFTED`, reusing the same enforcement drift already has — no separate blocking mechanism.
 
-**MCP integration** (`com.agentshield.mcp`) — registers MCP servers and discovers their tools via JSON-RPC (`tools/list`). Each discovered tool becomes a regular row in the tool registry above (linked back to its MCP server), so it goes through the exact same approval/drift/gateway pipeline as a plain HTTP tool. HTTP and STDIO transports are implemented; SSE is modeled in the schema for a future release.
+**MCP integration** (`com.agentshield.mcp`) — registers MCP servers and discovers their tools via JSON-RPC (`tools/list`). Each discovered tool becomes a regular row in the tool registry above (linked back to its MCP server), so it goes through the exact same approval/drift/gateway pipeline as a plain HTTP tool. All three transports (`HTTP`, `SSE`, `STDIO`) are implemented per `design-stdio-sse-mcp-transport-and-sandboxing.md`.
+`SSE` (`com.agentshield.mcp.McpSseConnectionManager`) is a persistent Server-Sent-Events connection —
+HTTP-based like the plain `HTTP` transport, so it has no subprocess/environment/filesystem concerns
+and no feature flag; it's governed by the same `OutboundEndpointValidator` SSRF policy and OAuth2
+flow as `HTTP`, bounded by call timeout/response-size/idle-timeout/reconnect limits.
 STDIO spawns a locally-sandboxed subprocess per `design-stdio-sse-mcp-transport-and-sandboxing.md`
 (`com.agentshield.mcp.StdioMcpProcessManager`) — gated behind `agentshield.stdio.enabled` (off by
 default), command-allowlisted, environment built from scratch (nothing from AgentShield's own

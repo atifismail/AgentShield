@@ -40,12 +40,14 @@ public class McpDiscoveryService {
     private final StdioCommandValidator stdioCommandValidator;
     private final StdioMcpProcessManager stdioProcessManager;
     private final StdioMcpProperties stdioProperties;
+    private final McpSseConnectionManager sseConnectionManager;
     private final AuditService auditService;
 
     public McpDiscoveryService(McpServerRepository serverRepository, ToolRepository toolRepository,
             ToolService toolService, McpJsonRpcClient rpcClient, McpOAuthTokenService oauthTokenService,
             OutboundEndpointValidator outboundEndpointValidator, StdioCommandValidator stdioCommandValidator,
-            StdioMcpProcessManager stdioProcessManager, StdioMcpProperties stdioProperties, AuditService auditService) {
+            StdioMcpProcessManager stdioProcessManager, StdioMcpProperties stdioProperties,
+            McpSseConnectionManager sseConnectionManager, AuditService auditService) {
         this.serverRepository = serverRepository;
         this.toolRepository = toolRepository;
         this.toolService = toolService;
@@ -55,6 +57,7 @@ public class McpDiscoveryService {
         this.stdioCommandValidator = stdioCommandValidator;
         this.stdioProcessManager = stdioProcessManager;
         this.stdioProperties = stdioProperties;
+        this.sseConnectionManager = sseConnectionManager;
         this.auditService = auditService;
     }
 
@@ -63,7 +66,7 @@ public class McpDiscoveryService {
         serverRepository.findByName(request.name()).ifPresent(s -> {
             throw new ValidationException("an MCP server named '" + request.name() + "' already exists");
         });
-        if (request.transportType() == McpTransportType.HTTP) {
+        if (request.transportType() == McpTransportType.HTTP || request.transportType() == McpTransportType.SSE) {
             var validation = outboundEndpointValidator.validate(request.endpointUrl());
             if (!validation.allowed()) {
                 throw new ValidationException("endpoint URL rejected by outbound policy: " + validation.reason());
@@ -137,11 +140,6 @@ public class McpDiscoveryService {
     @Transactional
     public DiscoveryResult discover(Long serverId) {
         McpServer server = get(serverId);
-        if (server.getTransportType() != McpTransportType.HTTP && server.getTransportType() != McpTransportType.STDIO) {
-            throw new ValidationException(
-                    "discovery for transport " + server.getTransportType()
-                            + " is not implemented yet; only HTTP and STDIO are supported");
-        }
 
         var rpcResult = callRpc(server, "tools/list", null);
         if (!rpcResult.success()) {
@@ -198,10 +196,19 @@ public class McpDiscoveryService {
         return new DiscoveryResult(upserted, removed);
     }
 
-    /** Dispatches a JSON-RPC call by transport — STDIO goes through the sandboxed process manager, HTTP through {@link McpJsonRpcClient}. */
+    /**
+     * Dispatches a JSON-RPC call by transport — STDIO goes through the sandboxed process manager,
+     * SSE through the persistent-connection manager, HTTP (the default/fallback) through the
+     * plain request/response {@link McpJsonRpcClient}.
+     */
     private McpJsonRpcClient.McpRpcResult callRpc(McpServer server, String method, JsonNode params) {
         if (server.getTransportType() == McpTransportType.STDIO) {
             var result = stdioProcessManager.call(server, method, params);
+            return result.success() ? McpJsonRpcClient.McpRpcResult.success(result.result())
+                    : McpJsonRpcClient.McpRpcResult.error(result.errorMessage());
+        }
+        if (server.getTransportType() == McpTransportType.SSE) {
+            var result = sseConnectionManager.call(server, method, params);
             return result.success() ? McpJsonRpcClient.McpRpcResult.success(result.result())
                     : McpJsonRpcClient.McpRpcResult.error(result.errorMessage());
         }

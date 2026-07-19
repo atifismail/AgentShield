@@ -72,7 +72,7 @@ public final class McpDtos {
     }
 
     /** Runtime (in-memory, not persisted) status of a STDIO transport server's managed subprocess. */
-    public record StdioStatusResponse(boolean running, Long pid, Instant startedAt, Instant lastActivityAt) {
+    public record McpTransportStatusResponse(boolean running, Long pid, Instant startedAt, Instant lastActivityAt) {
     }
 
     public record DiscoveryResponse(List<String> discoveredOrUpdatedTools, List<String> removedTools) {

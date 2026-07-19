@@ -14,12 +14,12 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 /**
- * A registered MCP server. {@link McpTransportType#HTTP} and {@link McpTransportType#STDIO} are
- * invokable; {@code STDIO} spawns a locally-sandboxed subprocess per
- * design-stdio-sse-mcp-transport-and-sandboxing.md and is gated behind
- * {@code agentshield.stdio.enabled} (off by default). {@code SSE} can be registered (the schema
- * supports it) but discovery/invocation for it isn't implemented yet and fails clearly rather than
- * pretending to work.
+ * A registered MCP server. All three {@link McpTransportType} values are invokable per
+ * design-stdio-sse-mcp-transport-and-sandboxing.md: {@code HTTP} is plain request/response;
+ * {@code SSE} is a persistent Server-Sent-Events connection (same SSRF policy as HTTP, no
+ * subprocess/filesystem/env concerns); {@code STDIO} spawns a locally-sandboxed subprocess and is
+ * gated behind {@code agentshield.stdio.enabled} (off by default) — the only transport with a
+ * feature flag, since it's the only one with local-code-execution risk.
  */
 @Entity
 @Table(name = "mcp_servers")

@@ -222,6 +222,27 @@ Windows can only launch via `cmd.exe /c`, reintroducing a narrower metacharacter
 `false` (rejecting `.cmd`/`.bat` commands) for exactly this reason — leave it off in any
 Linux/production deployment; it exists only for local Windows development convenience.
 
+## SSE MCP transport
+
+Much lighter than stdio — SSE is HTTP-based, so it's governed by the same
+`OutboundEndpointValidator` SSRF policy and OAuth2 flow as the plain `HTTP` transport, with no
+feature flag, no command allowlist, and no environment/filesystem concerns. Config:
+
+```yaml
+agentshield:
+  mcp:
+    sse:
+      call-timeout-seconds: 30
+      idle-timeout-minutes: 15
+      max-response-bytes: 1048576
+      reconnect-max-attempts: 3
+      reconnect-initial-backoff-millis: 500
+```
+
+Every connection open/close/failure and call-timeout/oversized-response rejection is audited
+(`mcp.sse_connection_opened`/`_closed`/`_failed`, `mcp.sse_call_timeout`,
+`mcp.sse_response_rejected`) — monitor these the same way as the stdio events above.
+
 ## Tool/skill supply-chain provenance trust policy
 
 Every tool version gets an automatic Level-1 checksum record; Level 2 (Sigstore signature

@@ -124,10 +124,21 @@ bundled demo tools) are always exempt, regardless of policy.
 | GET | `/api/mcp-servers/{id}/stdio/status` | ADMIN / SECURITY_ANALYST | `{running, pid, startedAt, lastActivityAt}` — in-memory runtime state, not persisted |
 | POST | `/api/mcp-servers/{id}/stdio/start` | ADMIN | Eagerly spawn the sandboxed subprocess now, instead of waiting for first use |
 | POST | `/api/mcp-servers/{id}/stdio/stop` | ADMIN | Force-stop it (e.g. suspected compromise) |
+| GET | `/api/mcp-servers/{id}/sse/status` | ADMIN / SECURITY_ANALYST | `{running, pid: null, startedAt, lastActivityAt}` for the persistent SSE connection |
+| POST | `/api/mcp-servers/{id}/sse/start` | ADMIN | Eagerly open the connection now, instead of waiting for first use |
+| POST | `/api/mcp-servers/{id}/sse/stop` | ADMIN | Force-close it |
 
-`transportType: "HTTP"` and `"STDIO"` are implemented — `SSE` can be registered (the schema
-supports it) but discovery/invocation for it returns a clear "not implemented yet" error rather
-than pretending to work.
+All three `transportType` values (`HTTP`, `SSE`, `STDIO`) are implemented per
+`design-stdio-sse-mcp-transport-and-sandboxing.md`. `SSE` opens a persistent Server-Sent-Events
+connection per the legacy MCP SSE transport (an initial `GET` receives an `endpoint` event naming
+a session-scoped POST URL; `tools/list`/`tools/call` requests are POSTed there, responses arrive
+asynchronously as `message` events, correlated by JSON-RPC `id`). It's HTTP-based like the plain
+`HTTP` transport — same SSRF policy (`OutboundEndpointValidator`), same OAuth2
+`client_credentials` flow when `authMode: OAUTH2` — with no subprocess/filesystem/environment
+concerns and no feature flag. Bounded by `agentshield.mcp.sse.call-timeout-seconds`,
+`max-response-bytes`, `idle-timeout-minutes`, and `reconnect-max-attempts`; every connection
+open/close/failure and call timeout/oversized-response rejection is audited
+(`mcp.sse_connection_opened`/`_closed`/`_failed`, `mcp.sse_call_timeout`, `mcp.sse_response_rejected`).
 
 **`STDIO` transport is gated behind `agentshield.stdio.enabled` (default `false`)** — registering
 or invoking a stdio server while disabled fails closed. It spawns a locally-sandboxed subprocess

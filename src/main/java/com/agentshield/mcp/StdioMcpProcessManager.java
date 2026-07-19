@@ -95,23 +95,23 @@ public class StdioMcpProcessManager {
         }
     }
 
-    public McpDtos.StdioStatusResponse status(Long serverId) {
+    public McpDtos.McpTransportStatusResponse status(Long serverId) {
         ManagedProcess m = processes.get(serverId);
         if (m == null || !m.process.isAlive()) {
-            return new McpDtos.StdioStatusResponse(false, null, null, null);
+            return new McpDtos.McpTransportStatusResponse(false, null, null, null);
         }
-        return new McpDtos.StdioStatusResponse(true, m.process.pid(), m.startedAt, m.lastActivityAt);
+        return new McpDtos.McpTransportStatusResponse(true, m.process.pid(), m.startedAt, m.lastActivityAt);
     }
 
-    public StdioOperationResult start(McpServer server) {
+    public McpOperationResult start(McpServer server) {
         if (!properties.isEnabled()) {
-            return StdioOperationResult.fail("stdio transport is disabled (agentshield.stdio.enabled=false)");
+            return McpOperationResult.fail("stdio transport is disabled (agentshield.stdio.enabled=false)");
         }
         try {
             getOrSpawn(server);
-            return StdioOperationResult.ok();
+            return McpOperationResult.ok();
         } catch (StdioSpawnFailedException e) {
-            return StdioOperationResult.fail(e.getMessage());
+            return McpOperationResult.fail(e.getMessage());
         }
     }
 
@@ -458,13 +458,4 @@ public class StdioMcpProcessManager {
         }
     }
 
-    public record StdioOperationResult(boolean success, String errorMessage) {
-        static StdioOperationResult ok() {
-            return new StdioOperationResult(true, null);
-        }
-
-        static StdioOperationResult fail(String errorMessage) {
-            return new StdioOperationResult(false, errorMessage);
-        }
-    }
 }

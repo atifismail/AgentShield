@@ -67,6 +67,8 @@ public class SecurityConfig {
             auth.requestMatchers("/api/mcp-servers/*/auth").hasRole("ADMIN");
             auth.requestMatchers("/api/mcp-servers/*/stdio/start", "/api/mcp-servers/*/stdio/stop").hasRole("ADMIN");
             auth.requestMatchers("/api/mcp-servers/*/stdio/status").hasAnyRole("ADMIN", "SECURITY_ANALYST");
+            auth.requestMatchers("/api/mcp-servers/*/sse/start", "/api/mcp-servers/*/sse/stop").hasRole("ADMIN");
+            auth.requestMatchers("/api/mcp-servers/*/sse/status").hasAnyRole("ADMIN", "SECURITY_ANALYST");
             auth.requestMatchers("/api/mcp-consents/**").hasAnyRole("ADMIN", "SECURITY_ANALYST");
             auth.anyRequest().authenticated();
         });

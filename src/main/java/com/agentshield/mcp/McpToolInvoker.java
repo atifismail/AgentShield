@@ -19,15 +19,17 @@ public class McpToolInvoker {
     private final McpJsonRpcClient rpcClient;
     private final McpOAuthTokenService oauthTokenService;
     private final StdioMcpProcessManager stdioProcessManager;
+    private final McpSseConnectionManager sseConnectionManager;
     private final ObjectMapper objectMapper;
 
     public McpToolInvoker(McpServerRepository serverRepository, McpJsonRpcClient rpcClient,
             McpOAuthTokenService oauthTokenService, StdioMcpProcessManager stdioProcessManager,
-            ObjectMapper objectMapper) {
+            McpSseConnectionManager sseConnectionManager, ObjectMapper objectMapper) {
         this.serverRepository = serverRepository;
         this.rpcClient = rpcClient;
         this.oauthTokenService = oauthTokenService;
         this.stdioProcessManager = stdioProcessManager;
+        this.sseConnectionManager = sseConnectionManager;
         this.objectMapper = objectMapper;
     }
 
@@ -49,9 +51,16 @@ public class McpToolInvoker {
             return McpInvocationResult.success(stdioRawBody, stdioResult.result());
         }
 
-        if (server.getTransportType() != McpTransportType.HTTP) {
-            return McpInvocationResult.failure(
-                    "invocation for transport " + server.getTransportType() + " is not implemented yet");
+        if (server.getTransportType() == McpTransportType.SSE) {
+            ObjectNode sseParams = objectMapper.createObjectNode();
+            sseParams.put("name", mcpToolName);
+            sseParams.set("arguments", input == null ? objectMapper.createObjectNode() : input);
+            var sseResult = sseConnectionManager.call(server, "tools/call", sseParams);
+            if (!sseResult.success()) {
+                return McpInvocationResult.failure(sseResult.errorMessage());
+            }
+            String sseRawBody = sseResult.result() == null ? "{}" : sseResult.result().toString();
+            return McpInvocationResult.success(sseRawBody, sseResult.result());
         }
 
         String bearerToken = null;

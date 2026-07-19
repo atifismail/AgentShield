@@ -4,7 +4,7 @@ import com.agentshield.common.ValidationException;
 import com.agentshield.mcp.McpDtos.DiscoveryResponse;
 import com.agentshield.mcp.McpDtos.McpServerResponse;
 import com.agentshield.mcp.McpDtos.RegisterMcpServerRequest;
-import com.agentshield.mcp.McpDtos.StdioStatusResponse;
+import com.agentshield.mcp.McpDtos.McpTransportStatusResponse;
 import com.agentshield.mcp.McpDtos.UpdateMcpAuthRequest;
 import com.agentshield.tool.Tool;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -27,10 +27,13 @@ public class McpServerController {
 
     private final McpDiscoveryService discoveryService;
     private final StdioMcpProcessManager stdioProcessManager;
+    private final McpSseConnectionManager sseConnectionManager;
 
-    public McpServerController(McpDiscoveryService discoveryService, StdioMcpProcessManager stdioProcessManager) {
+    public McpServerController(McpDiscoveryService discoveryService, StdioMcpProcessManager stdioProcessManager,
+            McpSseConnectionManager sseConnectionManager) {
         this.discoveryService = discoveryService;
         this.stdioProcessManager = stdioProcessManager;
+        this.sseConnectionManager = sseConnectionManager;
     }
 
     @PostMapping
@@ -63,13 +66,13 @@ public class McpServerController {
     }
 
     @GetMapping("/{id}/stdio/status")
-    public StdioStatusResponse stdioStatus(@PathVariable Long id) {
+    public McpTransportStatusResponse stdioStatus(@PathVariable Long id) {
         McpServer server = discoveryService.get(id);
         return stdioProcessManager.status(server.getId());
     }
 
     @PostMapping("/{id}/stdio/start")
-    public StdioStatusResponse stdioStart(@PathVariable Long id) {
+    public McpTransportStatusResponse stdioStart(@PathVariable Long id) {
         McpServer server = discoveryService.get(id);
         var result = stdioProcessManager.start(server);
         if (!result.success()) {
@@ -79,9 +82,32 @@ public class McpServerController {
     }
 
     @PostMapping("/{id}/stdio/stop")
-    public StdioStatusResponse stdioStop(@PathVariable Long id) {
+    public McpTransportStatusResponse stdioStop(@PathVariable Long id) {
         McpServer server = discoveryService.get(id);
         stdioProcessManager.stop(server);
         return stdioProcessManager.status(server.getId());
+    }
+
+    @GetMapping("/{id}/sse/status")
+    public McpTransportStatusResponse sseStatus(@PathVariable Long id) {
+        McpServer server = discoveryService.get(id);
+        return sseConnectionManager.status(server.getId());
+    }
+
+    @PostMapping("/{id}/sse/start")
+    public McpTransportStatusResponse sseStart(@PathVariable Long id) {
+        McpServer server = discoveryService.get(id);
+        var result = sseConnectionManager.start(server);
+        if (!result.success()) {
+            throw new ValidationException(result.errorMessage());
+        }
+        return sseConnectionManager.status(server.getId());
+    }
+
+    @PostMapping("/{id}/sse/stop")
+    public McpTransportStatusResponse sseStop(@PathVariable Long id) {
+        McpServer server = discoveryService.get(id);
+        sseConnectionManager.stop(server);
+        return sseConnectionManager.status(server.getId());
     }
 }
