@@ -9,7 +9,12 @@ public interface PolicyDecisionRepository extends JpaRepository<PolicyDecision, 
 
     long countByDecisionAndCreatedAtAfter(com.agentshield.common.PolicyDecisionType decision, Instant since);
 
-    Optional<PolicyDecision> findTopByGatewayRequestIdOrderByCreatedAtDesc(Long gatewayRequestId);
+    // Tie-broken by id, not just createdAt: MariaDB's TIMESTAMP column here is second-resolution
+    // (no fractional-seconds precision), so two decisions recorded for the same gateway request
+    // within the same second — e.g. the pre-call APPROVAL_REQUIRED decision and the post-approval
+    // execution's DENY decision — can tie on createdAt. Auto-increment id reflects true insertion
+    // order regardless of clock resolution.
+    Optional<PolicyDecision> findTopByGatewayRequestIdOrderByCreatedAtDescIdDesc(Long gatewayRequestId);
 
     /** Used by the dashboard to bucket recent decisions into a chart — no other consumers. */
     List<PolicyDecision> findByCreatedAtAfterOrderByCreatedAtAsc(Instant since);

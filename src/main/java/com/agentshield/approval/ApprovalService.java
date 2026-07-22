@@ -80,7 +80,7 @@ public class ApprovalService {
         }
 
         JsonNode input = parseStoredInput(gatewayRequest.getRequestBodyJson());
-        RiskAssessment preCallRisk = policyDecisionRepository.findTopByGatewayRequestIdOrderByCreatedAtDesc(gatewayRequest.getId())
+        RiskAssessment preCallRisk = policyDecisionRepository.findTopByGatewayRequestIdOrderByCreatedAtDescIdDesc(gatewayRequest.getId())
                 .map(d -> new RiskAssessment(d.getRiskScore(), d.getRiskLevel(), List.of()))
                 .orElse(new RiskAssessment(0, RiskLevel.LOW, List.of()));
 

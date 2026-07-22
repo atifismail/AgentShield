@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{layout/fragments :: head(title='DLP Findings')}"></head>
+<body>
+<nav th:replace="~{layout/fragments :: navbar}"></nav>
+<main class="container-fluid py-4">
+    <h1 class="h3 mb-4">DLP Findings</h1>
+    <div class="row g-3">
+        <div class="col-md-3">
+            <div class="card bg-body-tertiary h-100">
+                <div class="card-body">
+                    <div class="text-secondary small">Findings (7d)</div>
+                    <div class="fs-3 fw-semibold" th:text="${totalFindings7d ?: 0}">0</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-body-tertiary h-100">
+                <div class="card-body">
+                    <div class="text-secondary small">Blocked (7d)</div>
+                    <div class="fs-3 fw-semibold text-danger" th:text="${blockedCount7d ?: 0}">0</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-body-tertiary h-100">
+                <div class="card-body">
+                    <div class="text-secondary small">Redacted/Tokenized (7d)</div>
+                    <div class="fs-3 fw-semibold text-warning" th:text="${redactedCount7d ?: 0}">0</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-body-tertiary h-100">
+                <div class="card-body">
+                    <div class="text-secondary small">Classification Profiles</div>
+                    <div class="fs-3 fw-semibold" th:text="${profileCount ?: 0}">0</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-3 mt-1">
+        <div class="col-lg-8">
+            <div class="card">
+                <div class="card-header">Findings per day</div>
+                <div class="card-body">
+                    <canvas id="dlpFindingsChart" height="90"></canvas>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-4">
+            <div class="card">
+                <div class="card-header">By category</div>
+                <div class="card-body">
+                    <canvas id="dlpCategoryChart" height="140"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card mt-3">
+        <div class="card-header">Recent findings</div>
+        <div class="table-responsive">
+            <table class="table table-sm mb-0" id="dlpFindingsTable">
+                <thead>
+                <tr>
+                    <th>Time</th>
+                    <th>Stage</th>
+                    <th>Category</th>
+                    <th>Confidence</th>
+                    <th>Action</th>
+                    <th>Correlation</th>
+                </tr>
+                </thead>
+                <tbody>
+                <tr th:if="${#lists.isEmpty(recentFindings)}">
+                    <td colspan="6" class="text-secondary">No DLP findings recorded.</td>
+                </tr>
+                <tr th:each="finding : ${recentFindings}">
+                    <td th:text="${finding.createdAt}">-</td>
+                    <td th:text="${finding.contentStage}">-</td>
+                    <td th:text="${finding.category}">-</td>
+                    <td th:text="${finding.confidence}">-</td>
+                    <td th:text="${finding.actionTaken}">-</td>
+                    <td th:text="${finding.correlationId}">-</td>
+                </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</main>
+<script type="application/json" id="dlp-chart-data" th:utext="${#objects.nullSafe(chartSeriesJson, '{}')}"></script>
+<div th:replace="~{layout/fragments :: scripts}"></div>
+</body>
+</html>

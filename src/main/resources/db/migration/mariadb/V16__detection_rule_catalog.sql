@@ -1,0 +1,30 @@
+-- See postgresql/V16__detection_rule_catalog.sql for rationale.
+ALTER TABLE policy_decisions ADD COLUMN rule_id VARCHAR(64);
+
+CREATE TABLE detection_rules (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    code VARCHAR(64) NOT NULL UNIQUE,
+    name VARCHAR(255) NOT NULL,
+    category VARCHAR(64) NOT NULL,
+    description VARCHAR(2000),
+    source VARCHAR(32) NOT NULL,
+    reference_id VARCHAR(128),
+    created_at TIMESTAMP NOT NULL
+) ENGINE=InnoDB;
+
+INSERT INTO detection_rules (code, name, category, description, source, reference_id, created_at) VALUES
+('deny-schema-drift', 'Tool schema/description drift', 'TOOL_POISONING', 'A registered tool''s schema or description changed since last approval.', 'POLICY_RULE', 'deny-schema-drift', CURRENT_TIMESTAMP),
+('deny-prod-destructive-without-approval', 'Production destructive action blocked', 'EXCESSIVE_AGENCY', 'A DESTRUCTIVE action against PROD was denied outright; no approval path exists for this category.', 'POLICY_RULE', 'deny-prod-destructive-without-approval', CURRENT_TIMESTAMP),
+('deny-secret-external-transfer', 'Secret-like response blocked on external transfer', 'SENSITIVE_INFO_DISCLOSURE', 'A tool response matched a secret pattern and the destination was external.', 'POLICY_RULE', 'deny-secret-external-transfer', CURRENT_TIMESTAMP),
+('deny-prompt-injection-response', 'Prompt-injected tool response blocked', 'PROMPT_INJECTION', 'A tool response matched a prompt-injection pattern before it reached the agent.', 'POLICY_RULE', 'deny-prompt-injection-response', CURRENT_TIMESTAMP),
+('deny-tool-outside-allowed-group', 'Tool misuse outside allowed group', 'TOOL_MISUSE', 'An agent attempted to call a tool outside its allowed tool groups.', 'POLICY_RULE', 'deny-tool-outside-allowed-group', CURRENT_TIMESTAMP),
+('deny-disabled-agent', 'Disabled agent identity blocked', 'IDENTITY_PRIVILEGE_ABUSE', 'A cryptographically valid credential was rejected because the owning agent is disabled.', 'POLICY_RULE', 'deny-disabled-agent', CURRENT_TIMESTAMP),
+('require-approval-external-transfer', 'External transfer requires human approval', 'EXCESSIVE_AGENCY', 'An EXTERNAL_TRANSFER action was queued for human-in-the-loop approval.', 'POLICY_RULE', 'require-approval-external-transfer', CURRENT_TIMESTAMP),
+('first_seen_combination', 'First-seen agent/tool/category/environment combination', 'BEHAVIOR_ANOMALY', 'An agent used a tool/action-category/environment combination never seen before for that agent.', 'BEHAVIOR_BASELINE', 'first_seen_combination', CURRENT_TIMESTAMP),
+('repeated_denials', 'Repeated denials in a short window', 'BEHAVIOR_ANOMALY', 'An agent tripped multiple policy denials within the configured window.', 'BEHAVIOR_BASELINE', 'repeated_denials', CURRENT_TIMESTAMP),
+('unusual_approval_frequency', 'Unusual approval-request frequency', 'BEHAVIOR_ANOMALY', 'An agent requested approvals more frequently than its baseline.', 'BEHAVIOR_BASELINE', 'unusual_approval_frequency', CURRENT_TIMESTAMP),
+('volume_spike', 'Request volume spike', 'BEHAVIOR_ANOMALY', 'An agent''s request volume spiked above its established baseline.', 'BEHAVIOR_BASELINE', 'volume_spike', CURRENT_TIMESTAMP),
+('deny-dlp-block', 'Sensitive content blocked by DLP policy', 'SENSITIVE_INFO_DISCLOSURE', 'Inbound content matched a classification profile whose default action is BLOCK.', 'DLP', 'deny-dlp-block', CURRENT_TIMESTAMP),
+('require-approval-dlp-finding', 'Sensitive content requires human approval', 'SENSITIVE_INFO_DISCLOSURE', 'Inbound content matched a classification profile whose default action is APPROVAL_REQUIRED.', 'DLP', 'require-approval-dlp-finding', CURRENT_TIMESTAMP);
+
+CREATE INDEX idx_detection_rules_source ON detection_rules(source);

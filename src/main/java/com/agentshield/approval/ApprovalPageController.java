@@ -61,7 +61,7 @@ public class ApprovalPageController {
         model.addAttribute("approval", approval);
         model.addAttribute("request", gatewayRequest);
 
-        policyDecisionRepository.findTopByGatewayRequestIdOrderByCreatedAtDesc(gatewayRequest.getId())
+        policyDecisionRepository.findTopByGatewayRequestIdOrderByCreatedAtDescIdDesc(gatewayRequest.getId())
                 .ifPresent(d -> model.addAttribute("policyDecision", d));
         toolResponseRepository.findByGatewayRequestId(gatewayRequest.getId())
                 .ifPresent(tr -> model.addAttribute("toolResponse", tr));

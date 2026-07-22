@@ -117,7 +117,7 @@ public class PolicyService {
                 gatewayRequest.getActionCategory(), gatewayRequest.getTargetEnvironment(), payloadSizeBytes, 0);
         PolicyOutcome simulated = policyEngine.evaluateRequest(ctx);
 
-        var original = policyDecisionRepository.findTopByGatewayRequestIdOrderByCreatedAtDesc(gatewayRequestId);
+        var original = policyDecisionRepository.findTopByGatewayRequestIdOrderByCreatedAtDescIdDesc(gatewayRequestId);
         var originalDecision = original.map(PolicyDecision::getDecision).orElse(null);
         var originalReason = original.map(PolicyDecision::getReason).orElse(null);
 

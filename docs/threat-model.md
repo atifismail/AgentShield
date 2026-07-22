@@ -38,6 +38,21 @@ AgentShield exists to address six specific risks that show up once AI agents are
 
 **Control:** the tool registry acts as an explicit allowlist. An unregistered or unapproved tool cannot be called through the gateway at all.
 
+## 7. Sensitive-content exposure (secrets, PII, injected data)
+
+**Risk:** a tool-call argument, tool result, or RAG chunk can carry credentials, PII, or other
+sensitive content into or out of an agent's context — not just an injected instruction (§4), but
+the underlying data itself.
+
+**Control:** `com.agentshield.dlp` scans inbound tool-call arguments (and, already, tool responses)
+with `SecretDetector`, `PiiDetector`, and `PromptInjectionDetector` against an operator-configured
+`ClassificationProfile`, applying allow/redact/tokenize/block/approval-required per match — see
+`docs/api.md`'s DLP section. A standalone `POST /api/dlp/rag/scan` endpoint lets an external RAG
+ingestion pipeline classify a chunk before indexing it. **Scope, stated plainly:** this is
+content-stage scanning against inbound gateway traffic and ad hoc scan requests — there is no
+`rag_source`/ingestion-pipeline registry, no per-tenant policy scoping, and no OCR/image scanning;
+see the non-goal below.
+
 ## Known gaps
 
 Identified by a source-code review (2026-07-19) against current OWASP Agentic AI Top 10, OWASP
@@ -85,4 +100,9 @@ guidance. Not yet implemented — tracked here rather than silently assumed cove
 
 ## Non-goals
 
-AgentShield is not a SIEM replacement, not a full DLP platform, not a general chatbot, and not an antivirus or broad cloud security suite. It focuses specifically on the boundary between an agent and the tools it calls.
+AgentShield is not a SIEM replacement, not a general chatbot, and not an antivirus or broad cloud
+security suite. It focuses specifically on the boundary between an agent and the tools it calls.
+It now includes targeted DLP scanning at that boundary (§7) — deterministic pattern detectors
+plus operator-configured classification profiles — but this is not a full enterprise DLP platform:
+no OCR/image scanning, no document-management integration, and no RAG source/ingestion registry
+(nothing in this codebase performs real RAG ingestion yet — see `docs/api.md`).

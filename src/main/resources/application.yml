@@ -69,6 +69,23 @@ agentshield:
         - 192.168.0.0/16
   approval:
     default-expiration-minutes: 60
+  dlp:
+    # Off by default — reversible tokenization requires an explicit 32-byte base64 key
+    # (agentshield.dlp.tokenization-encryption-key), same gating style as
+    # agentshield.audit.retain-raw-tool-responses. Irreversible "[REDACTED:CATEGORY]" placeholders
+    # are used instead when this is off, which is the default and requires no key at all.
+    enable-reversible-tokenization: false
+  codetrust:
+    # If both keys below are unset, an ephemeral Ed25519 keypair is generated at startup (fine for
+    # dev/demo/test — see ReceiptSigningKeyProvider); ProductionSafetyChecks refuses to start with
+    # the "prod" profile active on an ephemeral key, since receipts signed before a restart would
+    # fail verification after one. Generate a real pair with e.g.
+    # `keytool` is not suitable for Ed25519 on all JDKs — use
+    # `openssl genpkey -algorithm Ed25519` and re-encode to base64 PKCS8/X509, or a small one-off
+    # Java snippet using KeyPairGenerator.getInstance("Ed25519").
+    signing-private-key: ""
+    signing-public-key: ""
+    signer-key-id: agentshield-default
   stdio:
     # Off by default (design-stdio-sse-mcp-transport-and-sandboxing.md §3) — spawning local
     # subprocesses is the highest-risk capability in this codebase. allowed-commands is also

@@ -40,6 +40,13 @@ public class PolicyDecision {
     @Column(name = "policy_version", length = 64)
     private String policyVersion;
 
+    /** The specific rule that produced this decision (e.g. {@code deny-schema-drift}), previously
+     * only embedded in the free-text audit message — now a structured, queryable/exportable field
+     * (see {@code com.agentshield.siem.SiemEventExportService}). Null for the plain default-ALLOW
+     * path, which has no named rule. */
+    @Column(name = "rule_id", length = 64)
+    private String ruleId;
+
     @Column(length = 4000)
     private String reason;
 

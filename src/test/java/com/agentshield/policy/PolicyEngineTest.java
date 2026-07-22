@@ -6,6 +6,7 @@ import com.agentshield.agent.Agent;
 import com.agentshield.agent.AgentStatus;
 import com.agentshield.common.ActionCategory;
 import com.agentshield.common.PolicyDecisionType;
+import com.agentshield.dlp.DlpAction;
 import com.agentshield.mcp.McpConsentService;
 import com.agentshield.risk.Confidence;
 import com.agentshield.risk.DetectionMatch;
@@ -54,7 +55,7 @@ class PolicyEngineTest {
     }
 
     private DetectionResult detected(String indicator, DetectorCategory category) {
-        return new DetectionResult(true, List.of(new DetectionMatch(indicator, category, Confidence.HIGH, 0, 1)));
+        return new DetectionResult(true, List.of(new DetectionMatch(indicator, category, Confidence.HIGH, 0, indicator.length(), 1)));
     }
 
     @Test
@@ -219,5 +220,35 @@ class PolicyEngineTest {
                 ActionCategory.READ, "DEV", 10));
 
         assertThat(outcome.decision()).isEqualTo(PolicyDecisionType.ALLOW);
+    }
+
+    @Test
+    void evaluateDlp_allowsWhenActionIsAllow() {
+        var outcome = engine.evaluateDlp(DlpAction.ALLOW, List.of());
+        assertThat(outcome.decision()).isEqualTo(PolicyDecisionType.ALLOW);
+    }
+
+    @Test
+    void evaluateDlp_allowsWhenActionIsRedactOrTokenize_contentAlreadySanitized() {
+        var match = detected("aws-access-key", com.agentshield.risk.DetectorCategory.CREDENTIAL);
+        assertThat(engine.evaluateDlp(DlpAction.REDACT, match.matches()).decision()).isEqualTo(PolicyDecisionType.ALLOW);
+        assertThat(engine.evaluateDlp(DlpAction.TOKENIZE, match.matches()).decision()).isEqualTo(PolicyDecisionType.ALLOW);
+    }
+
+    @Test
+    void evaluateDlp_deniesWhenActionIsBlock() {
+        var match = detected("aws-access-key", com.agentshield.risk.DetectorCategory.CREDENTIAL);
+        var outcome = engine.evaluateDlp(DlpAction.BLOCK, match.matches());
+        assertThat(outcome.decision()).isEqualTo(PolicyDecisionType.DENY);
+        assertThat(outcome.ruleId()).isEqualTo("deny-dlp-block");
+        assertThat(outcome.reason()).contains("aws-access-key");
+    }
+
+    @Test
+    void evaluateDlp_requiresApprovalWhenActionIsApprovalRequired() {
+        var match = detected("email-address", com.agentshield.risk.DetectorCategory.EMAIL);
+        var outcome = engine.evaluateDlp(DlpAction.APPROVAL_REQUIRED, match.matches());
+        assertThat(outcome.decision()).isEqualTo(PolicyDecisionType.APPROVAL_REQUIRED);
+        assertThat(outcome.ruleId()).isEqualTo("require-approval-dlp-finding");
     }
 }

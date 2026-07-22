@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{layout/fragments :: head(title='Code Assessment')}"></head>
+<body>
+<nav th:replace="~{layout/fragments :: navbar}"></nav>
+<main class="container-fluid py-4">
+    <h1 class="h3 mb-4" th:text="'Code Assessment #' + ${assessment.id}">Code Assessment</h1>
+    <div class="card mb-3">
+        <div class="card-body">
+            <dl class="row mb-0">
+                <dt class="col-sm-3">Repo</dt>
+                <dd class="col-sm-9" th:text="${assessment.repo}">-</dd>
+                <dt class="col-sm-3">Commit</dt>
+                <dd class="col-sm-9" th:text="${assessment.commitSha}">-</dd>
+                <dt class="col-sm-3">Branch</dt>
+                <dd class="col-sm-9" th:text="${assessment.branch}">-</dd>
+                <dt class="col-sm-3">Author</dt>
+                <dd class="col-sm-9" th:text="${assessment.author}">-</dd>
+                <dt class="col-sm-3">Source</dt>
+                <dd class="col-sm-9" th:text="${assessment.source}">-</dd>
+                <dt class="col-sm-3">Status</dt>
+                <dd class="col-sm-9" th:text="${assessment.status}">-</dd>
+                <dt class="col-sm-3">Requires re-scan</dt>
+                <dd class="col-sm-9" th:text="${assessment.requiresRescan}">-</dd>
+                <dt class="col-sm-3">Requested by</dt>
+                <dd class="col-sm-9" th:text="${assessment.requestedBy}">-</dd>
+                <dt class="col-sm-3" th:if="${assessment.approvedBy != null}">Approved by</dt>
+                <dd class="col-sm-9" th:if="${assessment.approvedBy != null}" th:text="${assessment.approvedBy} + ' at ' + ${assessment.approvedAt}">-</dd>
+                <dt class="col-sm-3" th:if="${assessment.rejectedBy != null}">Rejected by</dt>
+                <dd class="col-sm-9" th:if="${assessment.rejectedBy != null}" th:text="${assessment.rejectedBy} + ' at ' + ${assessment.rejectedAt}">-</dd>
+            </dl>
+        </div>
+    </div>
+    <p class="text-secondary">Use <code>GET /api/codetrust/assessments/{id}</code> for findings and receipt detail
+        (findings/receipt data is intentionally not duplicated in this server-rendered page).</p>
+</main>
+<div th:replace="~{layout/fragments :: scripts}"></div>
+</body>
+</html>

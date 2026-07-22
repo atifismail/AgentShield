@@ -42,7 +42,7 @@ public class GatewayRequestPageController {
                 .orElseThrow(() -> new ResourceNotFoundException("gateway request " + id + " not found"));
         model.addAttribute("pageTitle", "Gateway request #" + id);
         model.addAttribute("request", request);
-        policyDecisionRepository.findTopByGatewayRequestIdOrderByCreatedAtDesc(id)
+        policyDecisionRepository.findTopByGatewayRequestIdOrderByCreatedAtDescIdDesc(id)
                 .ifPresent(d -> model.addAttribute("policyDecision", d));
         approvalRequestRepository.findByGatewayRequestId(id).ifPresent(a -> model.addAttribute("approval", a));
         toolResponseRepository.findByGatewayRequestId(id).ifPresent(tr -> model.addAttribute("toolResponse", tr));

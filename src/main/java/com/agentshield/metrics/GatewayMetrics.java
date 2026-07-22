@@ -59,6 +59,12 @@ public class GatewayMetrics {
         registry.counter("agentshield_incidents_created_total").increment();
     }
 
+    /** Tagged by rule code (e.g. {@code deny-schema-drift}) so the SIEM/detection-coverage
+     * dashboard (improvement_plan.md A5) can show a per-rule fire count, not just an aggregate. */
+    public void detectionRuleFired(String ruleCode) {
+        registry.counter("agentshield_detection_rule_fired_total", "rule", ruleCode).increment();
+    }
+
     public Timer.Sample startTimer() {
         return Timer.start(registry);
     }

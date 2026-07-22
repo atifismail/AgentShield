@@ -261,6 +261,36 @@ security audit trail.
 | GET | `/api/incidents/{id}` | Detail — links back to `relatedAuditEventId` / `relatedGatewayRequestId` |
 | PATCH | `/api/incidents/{id}/status` | ADMIN/SECURITY_ANALYST. Body `{"status": "OPEN\|ACKNOWLEDGED\|RESOLVED\|FALSE_POSITIVE"}` |
 
+## DLP — `/api/dlp`
+
+| Method | Path | Role | Notes |
+|---|---|---|---|
+| POST | `/api/dlp/rag/scan` | any authenticated | Stateless scan: `{text, sourceName}` in, `{action, blocked, redactedText, findings}` out. Does not persist `text` itself — only the `DlpFinding` metadata (indicator/category/confidence/location, never the matched substring), same discipline as gateway response scanning |
+| GET | `/api/dlp/findings?stage=&category=&since=&page=&size=` | any authenticated | Filtered, paginated search over persisted findings |
+| GET | `/api/dlp/profiles` | any authenticated | List classification profiles |
+| POST | `/api/dlp/profiles` | ADMIN / SECURITY_ANALYST | Create: `{name, locale, detectSecrets, detectPii, detectPromptInjection, customPatterns, defaultAction, priority}` |
+| POST | `/api/dlp/profiles/{id}/enable` | ADMIN / SECURITY_ANALYST | |
+| POST | `/api/dlp/profiles/{id}/disable` | ADMIN / SECURITY_ANALYST | |
+
+`SecretDetector` and `PromptInjectionDetector` (already used for tool-response scanning) plus the
+new `PiiDetector` (email/phone/SSN-like/resident-registration-number-like/Luhn-validated
+credit-card-like patterns, plus operator-configured custom regexes) all run against a
+`ClassificationProfile`'s configuration. `defaultAction` is one of `ALLOW`, `REDACT`, `TOKENIZE`,
+`BLOCK`, `APPROVAL_REQUIRED` — `REDACT`/`TOKENIZE` sanitize the content in place (an irreversible
+`[REDACTED:<CATEGORY>]` placeholder by default, or a reversible opaque token if
+`agentshield.dlp.enable-reversible-tokenization` is explicitly enabled) rather than blocking the
+call. When no enabled profile exists yet, scanning still runs against a safe built-in default (all
+detectors on, `BLOCK` on any match) — DLP protection does not require any setup to be active.
+
+**Gateway integration:** `POST /api/gateway/invoke` now scans the inbound tool-call arguments
+(`input`) the same way it has always scanned tool *responses* — only reached when the fixed
+policy rules would otherwise `ALLOW`, so a DLP `BLOCK`/`APPROVAL_REQUIRED` finding overrides the
+`ALLOW` (new rule IDs `deny-dlp-block` / `require-approval-dlp-finding`), while a
+`REDACT`/`TOKENIZE` finding swaps in the sanitized payload before forwarding to the tool. The
+persisted `GatewayRequest.requestBodyJson` (used for approval replay) is left as the original,
+un-redacted submission, same as it already was for prod-write/external-transfer approvals — DLP
+does not change what an approving human ultimately executes.
+
 ## Governance evidence export — `/api/governance`
 
 | Method | Path | Role | Notes |
@@ -274,6 +304,93 @@ breakdown), tool drift events in range, incidents opened in range, and the polic
 currently in force. Sections are labeled with the NIST AI RMF function they evidence
 (govern/map/measure/manage). `from` must be strictly before `to` or the request is rejected with
 400. There's also an operator-facing form at `/governance`.
+
+## Code Trust — `/api/codetrust`
+
+AI-coding-assistant scan submission, block/pass policy, human review of blocked assessments, and
+signed/verifiable receipts for passed ones. **Not a SAST engine** — this endpoint ingests findings
+a caller already produced (see `scripts/agentshield-code-scan.sh` for a thin reference client) and
+applies policy/receipt logic to them.
+
+| Method | Path | Role | Notes |
+|---|---|---|---|
+| POST | `/api/codetrust/assessments` | ADMIN / SECURITY_ANALYST / CI_SCANNER | Submit `{repo, commitSha, branch, author, source, requiresRescan, requestedBy, findings[]}`. `findings[]` items are `{filePath, line, category, severity, ruleId, message}`; `category` is one of `SECRET/LICENSE/DEPENDENCY_RISK/INSECURE_PATTERN/CRYPTO_AUTH_CHANGE`, `severity` reuses the existing `RiskLevel` scale. Evaluated synchronously: any `HIGH`/`CRITICAL` finding → `BLOCKED`; `requiresRescan=true` → stays `PENDING` regardless of findings (used when a submission represents an unverified AI-suggested fix); otherwise → `PASSED` with a receipt issued immediately |
+| GET | `/api/codetrust/assessments` | ADMIN / SECURITY_ANALYST / CI_SCANNER | List all, newest first |
+| GET | `/api/codetrust/assessments/{id}` | ADMIN / SECURITY_ANALYST / CI_SCANNER | Full detail incl. findings and receipt (if issued) |
+| POST | `/api/codetrust/assessments/{id}/approve` | ADMIN / SECURITY_ANALYST | Only valid on a `BLOCKED` assessment (409 otherwise). Passes it and issues a receipt — `CI_SCANNER` cannot call this |
+| POST | `/api/codetrust/assessments/{id}/reject` | ADMIN / SECURITY_ANALYST | Only valid on a `BLOCKED` assessment; stays `BLOCKED`, no receipt |
+| POST | `/api/codetrust/receipts/{assessmentId}/verify` | ADMIN / SECURITY_ANALYST / CI_SCANNER | Self-contained: recomputes the Ed25519 signature check from the receipt's own stored `commitSha`/`scanSummaryHash` columns against the current signing key. Returns `{valid, commitSha, scanSummaryHash, signerKeyId}` |
+| GET | `/api/codetrust/signing-key` | any authenticated | `{algorithm, keyId, publicKeyBase64, ephemeral}` — lets a third party (CI system, auditor) verify a receipt independently, without any AgentShield credentials or database access |
+
+Receipts are signed with a local Ed25519 keypair (`ReceiptSigningKeyProvider`) — JDK-native, no new
+dependency, and deliberately separate from the Sigstore keyless verifier used elsewhere in this
+codebase (that one only ever *verifies* other publishers' signatures; this is the one place
+AgentShield signs something itself). If `agentshield.codetrust.signing-private-key`/
+`-public-key` are not configured, an ephemeral keypair is generated at startup — fine for
+dev/demo/test, but `ProductionSafetyChecks` refuses to start with the `prod` profile active on an
+ephemeral key, since every receipt signed before a restart would fail verification after one.
+Review state (`approvedBy`/`approvedAt`/`rejectedBy`/`rejectedAt`) lives directly on the
+assessment rather than going through `/api/approvals` — `ApprovalRequest` mandatorily references
+a `GatewayRequest` and its approval executes a tool call, neither of which applies to reviewing a
+code assessment.
+
+## SIEM export and detection validation — `/api/siem`
+
+Normalized event export for SIEM/SOAR ingest, a named detection-rule catalog, and a bundled
+attack-scenario simulator that proves the cataloged rules still fire — **not** a SIEM replacement;
+this feeds one.
+
+| Method | Path | Role | Notes |
+|---|---|---|---|
+| GET | `/api/siem/export?from=<ISO-8601>&to=<ISO-8601>` | ADMIN / SECURITY_ANALYST | JSON array of flat events for the range |
+| GET | `/api/siem/export?from=<ISO-8601>&to=<ISO-8601>&format=ndjson` | ADMIN / SECURITY_ANALYST | Same events as newline-delimited JSON (`application/x-ndjson`), one object per line — the shape real SIEM/Splunk/Elastic bulk ingest expects |
+| POST | `/api/siem/validate` | ADMIN / SECURITY_ANALYST, `demo` profile only | Replays 12 in-process scenarios (the original 10 `docs/demo-lab.md` scenarios plus 2 from the SOC Validation Module, see below) against the seeded demo agents/tools and returns each scenario's pass/fail plus which `DetectionRule` fired. A 13th scenario (MCP token misuse) is validated by a dedicated automated test instead — see below. 404s (profile inactive) outside `demo`, same as `/demo/**`. |
+
+Each exported event is one flat object per `GatewayRequest`: `eventType`, `timestamp`, `agentId`,
+`toolName`, `operation`, `targetResource`, `decision`, `riskScore`, `findings[]` (detector
+category+confidence pairs only — never a raw matched value, the same discipline `DlpFinding`
+already enforces), `approvalStatus`, `policyRuleIds[]`, and `traceId` (the existing
+`GatewayRequest.correlationId`, reused rather than inventing a second identifier).
+
+The detection-rule catalog (`detection_rules` table, seeded by `V16__detection_rule_catalog.sql`,
+extended by `V19__soc_validation.sql`) names 15 identifiers that already fire today — 7 fixed
+`PolicyEngine` rule ids, 4 `BehaviorBaselineRules` finding codes, 2 DLP rule ids from
+`PolicyEngine.evaluateDlp`, plus `mcp-oauth-token-rejected` (existing MCP OAuth token validation)
+and `codetrust-blocked` (Phase 3's code-assessment blocking) — it is a catalog of existing
+controls, not new detection logic. Each catalog entry also carries a nullable MITRE ATT&CK
+reference (`mitreAttackId`; `ATLAS:`-prefixed for a MITRE ATLAS, not classic ATT&CK, mapping) —
+left null where forcing one would be a weak, invented reference (behavioral-anomaly detection
+methods and the tool-misuse rule have no honest single-technique fit; see the V19 migration
+comment for the full reasoning). `GET /siem/coverage` (operator UI, not an API endpoint) shows the
+catalog joined against last-fired time (`agentshield_detection_rule_fired_total{rule="..."}`) and
+last-validated time (from `/api/siem/validate` runs, persisted in `detection_validation_runs`).
+
+## SOC Validation Module — `/api/siem/validation`
+
+Folds the research plan's "AI SOC Validation Lab" (N1) into AgentShield as a module rather than a
+separate product. Adds 2 more in-process scenarios to the simulator above (RAG data leakage,
+scenario-11; an AI coding assistant introducing a secret, scenario-12) plus a vendor-neutral
+alert-import validator: checks whether a downstream SIEM/alerting tool's actual exported alerts
+match what AgentShield's scenario catalog says should be catchable.
+
+| Method | Path | Role | Notes |
+|---|---|---|---|
+| POST | `/api/siem/validation/scenarios/run` | ADMIN / SECURITY_ANALYST, `demo` profile only | Equivalent to `/api/siem/validate` under this module's namespace. |
+| POST | `/api/siem/validation/alerts/import` | ADMIN / SECURITY_ANALYST | Body: `{"alerts": [{"alertName", "ruleId", "timestamp", "sourceEvent"}, ...]}` — a generic, vendor-neutral shape (no Elastic/Splunk/Logpresso-specific fields). Matches against the built-in `ExpectedDetectionsManifest`, persists a `ValidationRun`, and returns matched/missed scenarios plus any unexpected alert names. |
+| GET | `/api/siem/validation/runs/{id}/report?format=html\|md` | ADMIN / SECURITY_ANALYST | Renders the stored run as an escaped HTML page or Markdown document (`md` is the default). |
+
+**Scenario-10 (MCP token misuse) is deliberately not part of the 12-scenario in-process
+simulator.** Genuinely proving a wrong-audience/issuer token gets rejected requires a live mock
+OAuth authorization server, which only exists as test-only infrastructure
+(`com.agentshield.support.MockOAuthServerController`, `src/test`) — adding an equivalent to
+`src/main` would mean shipping mock authorization-server endpoints in every real deployment. It is
+instead validated by a dedicated test, `McpTokenMisuseAttackScenarioTest`, which still records a
+`DetectionValidationRun` row so it shows up in the coverage/validation dashboards.
+
+**A 14th scenario from the original plan, certificate-expiry-near-miss, is not implemented at
+all** — it is a TrustAtlas concept (certificate lifecycle), and this codebase has no certificate
+management. The `/siem/validation` dashboard lists it explicitly as "N/A — TrustAtlas scope"
+rather than silently omitting it.
 
 ## Error shape
 

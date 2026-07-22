@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{layout/fragments :: head(title='Code Trust')}"></head>
+<body>
+<nav th:replace="~{layout/fragments :: navbar}"></nav>
+<main class="container-fluid py-4">
+    <h1 class="h3 mb-4">Code Trust</h1>
+    <div class="row g-3">
+        <div class="col-md-3">
+            <div class="card bg-body-tertiary h-100">
+                <div class="card-body">
+                    <div class="text-secondary small">Assessments</div>
+                    <div class="fs-3 fw-semibold" th:text="${stats.totalCount ?: 0}">0</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-body-tertiary h-100">
+                <div class="card-body">
+                    <div class="text-secondary small">Passed (receipt issued)</div>
+                    <div class="fs-3 fw-semibold text-success" th:text="${stats.passedCount ?: 0}">0</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-body-tertiary h-100">
+                <div class="card-body">
+                    <div class="text-secondary small">Blocked</div>
+                    <div class="fs-3 fw-semibold text-danger" th:text="${stats.blockedCount ?: 0}">0</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-body-tertiary h-100">
+                <div class="card-body">
+                    <div class="text-secondary small">Pending re-scan</div>
+                    <div class="fs-3 fw-semibold text-warning" th:text="${stats.pendingRescanCount ?: 0}">0</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-3 mt-1">
+        <div class="col-lg-8">
+            <div class="card">
+                <div class="card-header">Assessments per day</div>
+                <div class="card-body">
+                    <canvas id="codeTrustChart" height="90"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card mt-3">
+        <div class="card-header">Recent assessments</div>
+        <div class="table-responsive">
+            <table class="table table-sm mb-0" id="codeTrustTable">
+                <thead>
+                <tr>
+                    <th>Time</th>
+                    <th>Repo</th>
+                    <th>Commit</th>
+                    <th>Branch</th>
+                    <th>Source</th>
+                    <th>Status</th>
+                    <th></th>
+                </tr>
+                </thead>
+                <tbody>
+                <tr th:if="${#lists.isEmpty(recentAssessments)}">
+                    <td colspan="7" class="text-secondary">No code assessments submitted yet.</td>
+                </tr>
+                <tr th:each="a : ${recentAssessments}">
+                    <td th:text="${a.createdAt}">-</td>
+                    <td th:text="${a.repo}">-</td>
+                    <td th:text="${a.commitSha}">-</td>
+                    <td th:text="${a.branch}">-</td>
+                    <td th:text="${a.source}">-</td>
+                    <td th:text="${a.status}">-</td>
+                    <td><a th:href="@{'/codetrust/' + ${a.id}}">View</a></td>
+                </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</main>
+<script type="application/json" id="codetrust-chart-data" th:utext="${#objects.nullSafe(chartSeriesJson, '{}')}"></script>
+<div th:replace="~{layout/fragments :: scripts}"></div>
+</body>
+</html>

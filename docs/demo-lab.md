@@ -93,6 +93,15 @@ that list is mapped to a concrete scenario or test below, not left implicit:
 | 8. Supply-chain provenance | OWASP Agentic Skills Top 10 — **agentic supply-chain vulnerability** | Automatic Level-1 checksum record per tool version, optional Level-2 Sigstore verification (`docs/api.md` "Supply-chain provenance") |
 | 9. Stdio disabled by default | OWASP Agentic AI Top 10 — **unexpected code execution attempt** | `agentshield.stdio.enabled=false` by default; command allowlist and sandboxing when enabled (`design-stdio-sse-mcp-transport-and-sandboxing.md`) |
 | *(not scripted — see below)* **Resource exhaustion through tool output** | OWASP Agentic AI Top 10 — resource exhaustion | `agentshield.stdio.max-output-bytes` / `agentshield.mcp.sse.max-response-bytes` — a response exceeding the limit aborts the read and closes the connection/process rather than buffering it; proven by `StdioMcpIntegrationTest.outputSizeLimitFailsClosedAndKillsTheProcess` and `McpSseIntegrationTest.oversizedResponseFailsClosed` |
+| 10. MCP token misuse *(not scripted here — see below)* | OWASP MCP Top 10 — token mismanagement | OAuth 2.1 audience/issuer/expiry/scope validation, `com.agentshield.mcp.McpOAuthTokenService` — proven by `McpTokenMisuseAttackScenarioTest`, not this script or `AttackSimulatorService` |
+| 11. Data leakage through RAG output | OWASP LLM Top 10 — sensitive information disclosure | `DlpScanService` + `deny-dlp-block` — `POST /api/dlp/rag/scan` |
+| 12. AI coding assistant introduces a secret | OWASP Agentic Skills Top 10 — agentic supply-chain vulnerability | `CodeAssessmentService` blocks on a HIGH/CRITICAL finding; `codetrust-blocked` |
+
+Scenarios 10-12 were added for the SOC Validation Module (improvement_plan.md N1, folded into
+AgentShield as a module rather than a separate product). A 13th scenario from that plan,
+certificate-expiry-near-miss, is **not implemented** — it's a TrustAtlas concept (certificate
+lifecycle) with nothing in this codebase to test against; the `/siem/validation` dashboard lists
+it explicitly as "N/A — TrustAtlas scope" rather than silently dropping it.
 
 Resource exhaustion isn't a scripted curl scenario because it requires a stdio or SSE MCP server
 that returns an oversized response — there's no bundled demo MCP server for either transport
@@ -107,3 +116,16 @@ gaps" section for anything not listed here.
 
 Every step above is a single `POST /api/gateway/invoke` call — see `docs/api.md` for the exact
 request/response shape, or just read `scripts/demo-attack-lab.sh`, which is plain `curl`.
+
+## Running it as an automated, assertable check
+
+`com.agentshield.siem.AttackSimulatorService` (see `docs/api.md` "SIEM export and detection
+validation") replays scenarios 0-9, 11, and 12 above in-process (12 total) — not by shelling out to
+this script — and asserts the expected `DetectionRule` fired for each, so a broken control fails a
+test instead of requiring a human to eyeball curl output. Run it via `POST /api/siem/validate` /
+`POST /api/siem/validation/scenarios/run` (demo profile, ADMIN/SECURITY_ANALYST) or as part of the
+test suite (`AttackSimulatorIntegrationTest`). Each run's pass/fail is persisted and shown on the
+"Detection Coverage" (`/siem/coverage`) and "SOC Validation" (`/siem/validation`) dashboards
+alongside when each rule last fired in real traffic. Scenario 10 (MCP token misuse) is validated
+separately by `McpTokenMisuseAttackScenarioTest` — see "SOC Validation Module" in `docs/api.md` for
+why it can't run through the same in-process simulator.

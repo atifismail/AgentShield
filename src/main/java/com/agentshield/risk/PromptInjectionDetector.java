@@ -38,7 +38,7 @@ public class PromptInjectionDetector {
             int offset = lower.indexOf(indicator.phrase());
             if (offset >= 0) {
                 matches.add(new DetectionMatch(indicator.phrase(), indicator.category(), indicator.confidence(),
-                        offset, lineOf(lower, offset)));
+                        offset, indicator.phrase().length(), lineOf(lower, offset)));
             }
         }
         return matches.isEmpty() ? DetectionResult.CLEAN : new DetectionResult(true, matches);

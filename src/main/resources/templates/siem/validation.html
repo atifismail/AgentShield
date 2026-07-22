@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{layout/fragments :: head(title='SOC Validation')}"></head>
+<body>
+<nav th:replace="~{layout/fragments :: navbar}"></nav>
+<main class="container-fluid py-4">
+    <h1 class="h3 mb-4">SOC Validation</h1>
+    <p class="text-secondary small">
+        Extends <a th:href="@{/siem/coverage}">Detection Coverage</a> with a scenario-centric view (all
+        implemented attack scenarios, including the two with no cataloged detection rule) and alert-import
+        validation against an external SIEM export.
+    </p>
+
+    <div class="card">
+        <div class="card-header">Scenario coverage</div>
+        <div class="table-responsive">
+            <table class="table table-sm mb-0">
+                <thead>
+                <tr>
+                    <th>Scenario</th>
+                    <th>Description</th>
+                    <th>Category</th>
+                    <th>MITRE</th>
+                    <th>Last validated</th>
+                    <th>Last result</th>
+                </tr>
+                </thead>
+                <tbody>
+                <tr th:each="row : ${rows}">
+                    <td th:text="${row.code}">-</td>
+                    <td th:text="${row.description}">-</td>
+                    <td th:text="${row.category}">-</td>
+                    <td th:text="${row.mitreAttackId}">-</td>
+                    <td th:text="${row.lastValidatedAt ?: 'never'}">-</td>
+                    <td>
+                        <span th:if="${row.lastPassed == true}" class="badge text-bg-success">passed</span>
+                        <span th:if="${row.lastPassed == false}" class="badge text-bg-danger">failed</span>
+                        <span th:if="${row.lastPassed == null}" class="badge text-bg-secondary">-</span>
+                    </td>
+                </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+    <p class="text-secondary small mt-2">
+        Run <code>POST /api/siem/validation/scenarios/run</code> (demo profile only) to refresh "last validated".
+        Scenario-10 (MCP token misuse) is validated by a dedicated automated test, not this button — see
+        <code>McpTokenMisuseAttackScenarioTest</code>.
+    </p>
+
+    <div class="card mt-3">
+        <div class="card-header">Latest alert-import validation</div>
+        <div class="card-body" th:if="${latestAlertRun == null}">
+            <p class="text-secondary mb-0">
+                No alert export has been imported yet. Use <code>POST /api/siem/validation/alerts/import</code>
+                to check a downstream SIEM/alerting tool's actual alert export against the expected-detections
+                manifest.
+            </p>
+        </div>
+        <div class="card-body" th:if="${latestAlertRun != null}">
+            <div class="row g-3">
+                <div class="col-md-8">
+                    <canvas id="socValidationChart" height="120"></canvas>
+                </div>
+                <div class="col-md-4">
+                    <div class="text-secondary small">Run #<span th:text="${latestAlertRun.id}">-</span></div>
+                    <div class="text-secondary small">Triggered by <span th:text="${latestAlertRun.triggeredBy ?: 'system'}">-</span></div>
+                    <div class="text-secondary small" th:text="${latestAlertRun.createdAt}">-</div>
+                    <p class="mt-2">
+                        <a th:href="@{'/api/siem/validation/runs/' + ${latestAlertRun.id} + '/report?format=html'}">
+                            View HTML report
+                        </a>
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+</main>
+<script type="application/json" id="soc-validation-chart-data" th:utext="${#objects.nullSafe(chartSeriesJson, '{}')}"></script>
+<div th:replace="~{layout/fragments :: scripts}"></div>
+</body>
+</html>

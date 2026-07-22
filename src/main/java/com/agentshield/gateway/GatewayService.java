@@ -15,6 +15,10 @@ import com.agentshield.common.GatewayRequestStatus;
 import com.agentshield.common.PolicyDecisionType;
 import com.agentshield.common.RiskLevel;
 import com.agentshield.common.TokenHasher;
+import com.agentshield.dlp.ContentStage;
+import com.agentshield.dlp.DlpAction;
+import com.agentshield.dlp.DlpScanResult;
+import com.agentshield.dlp.DlpScanService;
 import com.agentshield.gateway.GatewayDtos.InvokeRequest;
 import com.agentshield.gateway.GatewayDtos.InvokeResponse;
 import com.agentshield.incident.IncidentService;
@@ -66,6 +70,7 @@ public class GatewayService {
     private final RiskScorer riskScorer;
     private final PromptInjectionDetector injectionDetector;
     private final SecretDetector secretDetector;
+    private final DlpScanService dlpScanService;
     private final ToolForwarder toolForwarder;
     private final AuditService auditService;
     private final IncidentService incidentService;
@@ -80,7 +85,8 @@ public class GatewayService {
     public GatewayService(AgentCredentialRepository agentCredentialRepository, ToolRepository toolRepository,
             GatewayRequestRepository gatewayRequestRepository, PolicyDecisionRepository policyDecisionRepository,
             ApprovalRequestRepository approvalRequestRepository, PolicyEngine policyEngine, RiskScorer riskScorer,
-            PromptInjectionDetector injectionDetector, SecretDetector secretDetector, ToolForwarder toolForwarder,
+            PromptInjectionDetector injectionDetector, SecretDetector secretDetector, DlpScanService dlpScanService,
+            ToolForwarder toolForwarder,
             AuditService auditService, IncidentService incidentService, BehaviorBaselineService behaviorBaselineService,
             ObjectMapper objectMapper,
             GatewayToolResponseRepository toolResponseRepository, RawResponseEncryptor rawResponseEncryptor,
@@ -96,6 +102,7 @@ public class GatewayService {
         this.riskScorer = riskScorer;
         this.injectionDetector = injectionDetector;
         this.secretDetector = secretDetector;
+        this.dlpScanService = dlpScanService;
         this.toolForwarder = toolForwarder;
         this.auditService = auditService;
         this.incidentService = incidentService;
@@ -149,7 +156,7 @@ public class GatewayService {
             GatewayRequest gatewayRequest = persistRequest(correlationId, agent, null, request, "");
             gatewayRequest.setStatus(GatewayRequestStatus.DENIED);
             String reason = "tool '" + request.toolId() + "' is not registered";
-            recordDecision(gatewayRequest, PolicyDecisionType.DENY, reason, 0, RiskLevel.LOW);
+            recordDecision(gatewayRequest, PolicyDecisionType.DENY, "deny-tool-not-registered", reason, 0, RiskLevel.LOW);
             auditService.record(correlationId, "gateway.denied", ActorType.AGENT, agent.getName(), agent.getId(),
                     null, AuditSeverity.WARNING, reason, null);
             return InvokeResponse.deny(RiskLevel.LOW, reason);
@@ -171,6 +178,7 @@ public class GatewayService {
 
         PolicyOutcome policyOutcome;
         RiskAssessment riskAssessment;
+        JsonNode forwardInput = request.input();
         try {
             PolicyEvaluationContext ctx = new PolicyEvaluationContext(agent, tool, request.actionCategory(),
                     request.targetEnvironment(), payloadBytes, maxPayloadBytes);
@@ -185,14 +193,29 @@ public class GatewayService {
                     .firstTimeAgentToolPair(firstTimePair)
                     .build();
             riskAssessment = riskScorer.score(riskInput);
+
+            // DLP scan of the inbound tool-call arguments — only reached when the fixed rules
+            // above would otherwise ALLOW, same "only tighten, never weaken" precedence as
+            // PolicyEngine.evaluateOverrides. A BLOCK/APPROVAL_REQUIRED finding overrides the
+            // ALLOW; a REDACT/TOKENIZE finding swaps in the sanitized payload for forwarding
+            // while the decision itself stays ALLOW.
+            if (policyOutcome.isAllow()) {
+                DlpScanResult dlpResult = dlpScanService.scan(inputJson, ContentStage.TOOL_ARGUMENT, correlationId);
+                PolicyOutcome dlpOutcome = policyEngine.evaluateDlp(dlpResult.action(), dlpResult.matches());
+                if (!dlpOutcome.isAllow()) {
+                    policyOutcome = dlpOutcome;
+                } else if (dlpResult.action() == DlpAction.REDACT || dlpResult.action() == DlpAction.TOKENIZE) {
+                    forwardInput = parseJsonSafely(dlpResult.outputText(), request.input());
+                }
+            }
         } catch (Exception e) {
             policyOutcome = new PolicyOutcome(PolicyDecisionType.DENY,
                     "policy evaluation failed, failing closed: " + e.getMessage(), "fail-closed-error");
             riskAssessment = new RiskAssessment(100, RiskLevel.CRITICAL, List.of("policy evaluation threw an exception"));
         }
 
-        recordDecision(gatewayRequest, policyOutcome.decision(), policyOutcome.reason(), riskAssessment.score(),
-                riskAssessment.level());
+        recordDecision(gatewayRequest, policyOutcome.decision(), policyOutcome.ruleId(), policyOutcome.reason(),
+                riskAssessment.score(), riskAssessment.level());
         auditService.record(correlationId, "gateway.policy_decision", ActorType.SYSTEM, "policy-engine",
                 agent.getId(), tool.getId(), severityFor(policyOutcome.decision()),
                 "policy decision " + policyOutcome.decision() + " [" + policyOutcome.ruleId() + "]: "
@@ -219,7 +242,7 @@ public class GatewayService {
                         agent.getId(), tool.getId(), AuditSeverity.WARNING, policyOutcome.reason(), null);
                 yield InvokeResponse.approvalRequired(riskAssessment.level(), policyOutcome.reason(), approval.getId());
             }
-            default -> executeAndScan(gatewayRequest, tool, request.actionCategory(), request.input(), riskAssessment);
+            default -> executeAndScan(gatewayRequest, tool, request.actionCategory(), forwardInput, riskAssessment);
         };
     }
 
@@ -267,8 +290,8 @@ public class GatewayService {
             RiskAssessment finalRisk = riskScorer.score(rescored);
 
             gatewayRequest.setStatus(GatewayRequestStatus.FAILED);
-            recordDecision(gatewayRequest, PolicyDecisionType.DENY, responseOutcome.reason(), finalRisk.score(),
-                    RiskLevel.CRITICAL);
+            recordDecision(gatewayRequest, PolicyDecisionType.DENY, responseOutcome.ruleId(), responseOutcome.reason(),
+                    finalRisk.score(), RiskLevel.CRITICAL);
             var auditEvent = auditService.record(correlationId, "gateway.response_blocked", ActorType.SYSTEM,
                     "response-scanner", gatewayRequest.getAgent().getId(), tool.getId(), AuditSeverity.CRITICAL,
                     responseOutcome.reason(), null);
@@ -350,17 +373,21 @@ public class GatewayService {
         }
     }
 
-    private void recordDecision(GatewayRequest gatewayRequest, PolicyDecisionType decision, String reason,
-            int riskScore, RiskLevel riskLevel) {
+    private void recordDecision(GatewayRequest gatewayRequest, PolicyDecisionType decision, String ruleId,
+            String reason, int riskScore, RiskLevel riskLevel) {
         PolicyDecision decisionRecord = new PolicyDecision();
         decisionRecord.setGatewayRequest(gatewayRequest);
         decisionRecord.setDecision(decision);
         decisionRecord.setPolicyVersion("default-policy-v1");
+        decisionRecord.setRuleId(ruleId);
         decisionRecord.setReason(reason);
         decisionRecord.setRiskScore(riskScore);
         decisionRecord.setRiskLevel(riskLevel);
         policyDecisionRepository.save(decisionRecord);
         metrics.decisionRecorded(decision);
+        if (ruleId != null) {
+            metrics.detectionRuleFired(ruleId);
+        }
     }
 
     private AuditSeverity severityFor(PolicyDecisionType decision) {
@@ -384,6 +411,17 @@ public class GatewayService {
             return "{}";
         }
         return node.toString();
+    }
+
+    private JsonNode parseJsonSafely(String json, JsonNode fallback) {
+        if (json == null) {
+            return fallback;
+        }
+        try {
+            return objectMapper.readTree(json);
+        } catch (Exception e) {
+            return fallback;
+        }
     }
 
     private String truncate(String text) {

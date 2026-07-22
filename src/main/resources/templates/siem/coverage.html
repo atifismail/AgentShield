@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{layout/fragments :: head(title='Detection Coverage')}"></head>
+<body>
+<nav th:replace="~{layout/fragments :: navbar}"></nav>
+<main class="container-fluid py-4">
+    <h1 class="h3 mb-4">Detection Coverage</h1>
+    <div class="row g-3">
+        <div class="col-md-4">
+            <div class="card bg-body-tertiary h-100">
+                <div class="card-body">
+                    <div class="text-secondary small">Cataloged rules</div>
+                    <div class="fs-3 fw-semibold" th:text="${ruleCount ?: 0}">0</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card bg-body-tertiary h-100">
+                <div class="card-body">
+                    <div class="text-secondary small">Ever validated</div>
+                    <div class="fs-3 fw-semibold" th:text="${validatedCount ?: 0}">0</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card h-100">
+                <div class="card-header">By source</div>
+                <div class="card-body">
+                    <canvas id="siemCoverageChart" height="90"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card mt-3">
+        <div class="card-header">Detection rule catalog</div>
+        <div class="table-responsive">
+            <table class="table table-sm mb-0">
+                <thead>
+                <tr>
+                    <th>Code</th>
+                    <th>Name</th>
+                    <th>Category</th>
+                    <th>Source</th>
+                    <th>Last validated</th>
+                    <th>Last result</th>
+                </tr>
+                </thead>
+                <tbody>
+                <tr th:if="${#lists.isEmpty(rows)}">
+                    <td colspan="6" class="text-secondary">No detection rules cataloged.</td>
+                </tr>
+                <tr th:each="row : ${rows}">
+                    <td th:text="${row.code}">-</td>
+                    <td th:text="${row.name}">-</td>
+                    <td th:text="${row.category}">-</td>
+                    <td th:text="${row.source}">-</td>
+                    <td th:text="${row.lastValidatedAt ?: 'never'}">-</td>
+                    <td>
+                        <span th:if="${row.lastValidationPassed == true}" class="badge text-bg-success">passed</span>
+                        <span th:if="${row.lastValidationPassed == false}" class="badge text-bg-danger">failed</span>
+                        <span th:if="${row.lastValidationPassed == null}" class="badge text-bg-secondary">-</span>
+                    </td>
+                </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+    <p class="text-secondary small mt-2">
+        Run the attack simulator (<code>POST /api/siem/validate</code>, demo profile only) to refresh
+        "last validated" — production traffic alone only updates the
+        <code>agentshield_detection_rule_fired_total</code> metric, not this table's validation column.
+    </p>
+</main>
+<script type="application/json" id="siem-coverage-chart-data" th:utext="${#objects.nullSafe(chartSeriesJson, '{}')}"></script>
+<div th:replace="~{layout/fragments :: scripts}"></div>
+</body>
+</html>

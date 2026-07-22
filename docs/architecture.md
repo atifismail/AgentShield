@@ -13,6 +13,7 @@ AgentShield Gateway
         +-- Policy Engine
         +-- Tool Registry
         +-- Risk Engine
+        +-- DLP Scan (inbound args + responses)
         +-- Approval Workflow
         +-- Audit Service
         |
@@ -42,7 +43,9 @@ JVM — see `docs/operations.md` for what a production deployment must enforce e
 
 **Policy engine** (`com.agentshield.policy`) — evaluates a normalized request against a set of rules and returns ALLOW, DENY, or APPROVAL_REQUIRED with a reason. Rules are versioned; a dry-run mode lets you test a policy change against a hypothetical request before enabling it.
 
-**Risk engine** (`com.agentshield.risk`) — assigns a deterministic risk score (and LOW/MEDIUM/HIGH/CRITICAL level) to a request based on the action category, target environment, tool trust state, and any detector hits. Includes the prompt-injection and secret-pattern detectors used to inspect tool responses before they flow back to the agent.
+**Risk engine** (`com.agentshield.risk`) — assigns a deterministic risk score (and LOW/MEDIUM/HIGH/CRITICAL level) to a request based on the action category, target environment, tool trust state, and any detector hits. Includes the prompt-injection, secret-pattern, and PII detectors used to inspect tool responses (and, via `com.agentshield.dlp`, inbound tool-call arguments) before they flow back to the agent.
+
+**DLP** (`com.agentshield.dlp`) — resolves an operator-configured `ClassificationProfile` (which detectors run, and what to do on a match: allow/redact/tokenize/block/approval-required) and runs it against a piece of content, whether that's the gateway's inbound tool-call arguments, a standalone RAG-chunk scan request, or (in principle) any other text a caller wants classified. `RedactionService` replaces a matched span with an irreversible `[REDACTED:<CATEGORY>]` placeholder by default, or a reversible opaque token if reversible tokenization is explicitly enabled. Findings are recorded the same way response-scanning findings already are — indicator/category/confidence/location only, never the matched substring. When no profile has been configured, scanning still runs against a safe built-in default (all detectors on, BLOCK on any match).
 
 **Approval workflow** (`com.agentshield.approval`) — queues actions that policy marks as requiring human sign-off, and exposes approve/reject endpoints with expiration handling.
 
@@ -50,13 +53,18 @@ JVM — see `docs/operations.md` for what a production deployment must enforce e
 
 **Incidents** (`com.agentshield.incident`) — a critical detector finding (secret leak, prompt injection, blocked destructive action) generates an incident record linking back to the triggering audit event and gateway request.
 
+**SIEM export and detection validation** (`com.agentshield.siem`) — a flat, SIEM/Splunk/Elastic-friendly event export (`GET /api/siem/export`) built the same way `GovernanceReportService` assembles its AI-RMF report: read-only, from existing operational tables, no new source of truth. A `DetectionRule` catalog names 15 identifiers that already fire today (7 `PolicyEngine` rule ids, 4 `BehaviorBaselineRules` codes, 2 DLP rule ids, plus MCP OAuth token rejection and Code Trust blocking), each with an optional MITRE ATT&CK reference alongside its OWASP category — and `AttackSimulatorService` replays 12 of the 13 SOC Validation Module scenarios (`docs/demo-lab.md`) in-process to prove they still fire, recording each run so the "Detection Coverage" dashboard can show last-fired (from a tagged `agentshield_detection_rule_fired_total` metric) and last-validated per rule.
+
+**SOC Validation Module** (`com.agentshield.siem.validation`) — the research plan's "AI SOC Validation Lab" (N1) folded into AgentShield as a module: adds the RAG-leakage and code-assistant-secret scenarios to the simulator above, plus a vendor-neutral `AlertImportService` that checks whether a downstream SIEM's actual exported alerts match an `ExpectedDetectionsManifest`. The 13th scenario, MCP token misuse, is validated by a dedicated test rather than the live simulator (see `docs/api.md`); a 14th from the original plan, certificate-expiry-near-miss, is out of scope entirely (a TrustAtlas concept).
+
 ## Data flow for a single tool call
 
 1. Agent sends a normalized request to `/api/gateway/invoke` with its bearer token.
 2. Gateway authenticates the agent and persists a `GatewayRequest`.
 3. Policy engine evaluates the 10 default rules against the request (agent status, tool approval/drift state, environment, action category, allowed tool groups, payload size).
 4. Risk engine scores the request.
-5. If ALLOW: the gateway forwards the call to the tool's registered endpoint, scans the response for secrets/prompt-injection, records a `GatewayToolResponse` forensic row (status code, response hash, sanitized summary, matched detector indicators — raw body only if retention is explicitly enabled, see `docs/operations.md`), and returns the result to the agent.
+4a. If the rules above would otherwise ALLOW, the DLP scan runs against the inbound tool-call arguments; a BLOCK/APPROVAL_REQUIRED finding overrides the ALLOW, a REDACT/TOKENIZE finding swaps in the sanitized arguments before the next step.
+5. If ALLOW: the gateway forwards the call to the tool's registered endpoint, scans the response for secrets/prompt-injection/PII, records a `GatewayToolResponse` forensic row (status code, response hash, sanitized summary, matched detector indicators — raw body only if retention is explicitly enabled, see `docs/operations.md`), and returns the result to the agent.
 6. If DENY: the call never reaches the tool; the agent gets a reason.
 7. If APPROVAL_REQUIRED: an `ApprovalRequest` is created and queued for a human; the agent gets a reference id.
 8. Every step writes an audit event.

@@ -61,7 +61,19 @@ public class SecurityConfig {
             auth.requestMatchers("/api/tools/*/approve", "/api/tools/*/reject").hasAnyRole("ADMIN", "TOOL_OWNER", "SECURITY_ANALYST");
             auth.requestMatchers("/api/tools/*/provenance/**").hasAnyRole("ADMIN", "SECURITY_ANALYST");
             auth.requestMatchers("/api/policies/**", "/api/policy-overrides/**").hasAnyRole("ADMIN", "SECURITY_ANALYST");
+            auth.requestMatchers("/api/dlp/profiles/**").hasAnyRole("ADMIN", "SECURITY_ANALYST");
+            // CI_SCANNER is a machine-client role for scripts/agentshield-code-scan.sh and CI
+            // pipelines submitting scan results via Basic Auth — deliberately not the gateway's
+            // bearer-token path (that stays scoped to /api/gateway/** only, see class javadoc).
+            // The approve/reject matcher is intentionally declared before the broader
+            // assessments/** one below — Spring Security uses the first matcher that matches a
+            // request, so CI_SCANNER must never reach the review endpoints.
+            auth.requestMatchers("/api/codetrust/assessments/*/approve", "/api/codetrust/assessments/*/reject")
+                    .hasAnyRole("ADMIN", "SECURITY_ANALYST");
+            auth.requestMatchers("/api/codetrust/assessments", "/api/codetrust/assessments/**")
+                    .hasAnyRole("ADMIN", "SECURITY_ANALYST", "CI_SCANNER");
             auth.requestMatchers("/api/governance/**").hasAnyRole("ADMIN", "SECURITY_ANALYST");
+            auth.requestMatchers("/api/siem/**").hasAnyRole("ADMIN", "SECURITY_ANALYST");
             auth.requestMatchers("/api/approvals/*/approve", "/api/approvals/*/reject").hasAnyRole("ADMIN", "APPROVER");
             auth.requestMatchers("/api/incidents/*/status").hasAnyRole("ADMIN", "SECURITY_ANALYST");
             auth.requestMatchers("/api/mcp-servers/*/auth").hasRole("ADMIN");

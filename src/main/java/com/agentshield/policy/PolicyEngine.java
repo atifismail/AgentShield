@@ -2,9 +2,12 @@ package com.agentshield.policy;
 
 import com.agentshield.common.ActionCategory;
 import com.agentshield.common.PolicyDecisionType;
+import com.agentshield.dlp.DlpAction;
 import com.agentshield.mcp.McpConsentService;
+import com.agentshield.risk.DetectionMatch;
 import com.agentshield.risk.DetectionResult;
 import com.agentshield.tool.ToolApprovalStatus;
+import java.util.List;
 import org.springframework.stereotype.Component;
 
 /**
@@ -208,5 +211,28 @@ public class PolicyEngine implements PolicyEvaluator {
                     "deny-prompt-injection-response");
         }
         return PolicyOutcome.allow();
+    }
+
+    /**
+     * DLP-aware outcome for inbound content (prompt/tool-argument) a {@code DlpScanService} scan
+     * already resolved an action for. ALLOW/REDACT/TOKENIZE all mean the call proceeds (redaction
+     * already happened at the DLP layer, if applicable) — only BLOCK and APPROVAL_REQUIRED change
+     * the gateway's decision.
+     */
+    public PolicyOutcome evaluateDlp(DlpAction action, List<DetectionMatch> matches) {
+        if (action == null || action == DlpAction.ALLOW || action == DlpAction.REDACT || action == DlpAction.TOKENIZE) {
+            return PolicyOutcome.allow();
+        }
+        List<String> indicators = matches.stream().map(DetectionMatch::indicator).distinct().toList();
+        if (action == DlpAction.BLOCK) {
+            return new PolicyOutcome(PolicyDecisionType.DENY,
+                    "request contains sensitive content (" + String.join(", ", indicators)
+                            + ") blocked by DLP policy",
+                    "deny-dlp-block");
+        }
+        return new PolicyOutcome(PolicyDecisionType.APPROVAL_REQUIRED,
+                "request contains sensitive content (" + String.join(", ", indicators)
+                        + ") and requires human approval",
+                "require-approval-dlp-finding");
     }
 }

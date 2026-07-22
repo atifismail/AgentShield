@@ -7,6 +7,7 @@ import com.agentshield.common.PolicyDecisionType;
 import com.agentshield.gateway.GatewayRequest;
 import com.agentshield.gateway.GatewayRequestRepository;
 import com.agentshield.incident.IncidentService;
+import com.agentshield.metrics.GatewayMetrics;
 import com.agentshield.policy.PolicyDecisionRepository;
 import java.time.Duration;
 import java.time.Instant;
@@ -29,15 +30,17 @@ public class BehaviorBaselineService {
     private final PolicyDecisionRepository policyDecisionRepository;
     private final AuditService auditService;
     private final IncidentService incidentService;
+    private final GatewayMetrics metrics;
     private final BaselineThresholds thresholds;
 
     public BehaviorBaselineService(GatewayRequestRepository gatewayRequestRepository,
             PolicyDecisionRepository policyDecisionRepository, AuditService auditService,
-            IncidentService incidentService) {
+            IncidentService incidentService, GatewayMetrics metrics) {
         this.gatewayRequestRepository = gatewayRequestRepository;
         this.policyDecisionRepository = policyDecisionRepository;
         this.auditService = auditService;
         this.incidentService = incidentService;
+        this.metrics = metrics;
         this.thresholds = BaselineThresholds.defaults();
     }
 
@@ -75,5 +78,6 @@ public class BehaviorBaselineService {
                 summary, null);
         incidentService.createWarning("Unusual behavior: agent '" + agentName + "'", summary, auditEvent.getId(),
                 gatewayRequest.getId());
+        findings.forEach(finding -> metrics.detectionRuleFired(finding.code()));
     }
 }

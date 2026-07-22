@@ -60,7 +60,7 @@ public class SecretDetector {
                 }
                 int offset = matcher.start();
                 matches.add(new DetectionMatch(secretPattern.indicator(), secretPattern.category(),
-                        secretPattern.confidence(), offset, lineOf(text, offset)));
+                        secretPattern.confidence(), offset, matcher.end() - offset, lineOf(text, offset)));
                 break;
             }
         }

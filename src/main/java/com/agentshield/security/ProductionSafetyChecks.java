@@ -1,5 +1,6 @@
 package com.agentshield.security;
 
+import com.agentshield.codetrust.ReceiptSigningKeyProvider;
 import com.agentshield.mcp.StdioMcpProperties;
 import jakarta.annotation.PostConstruct;
 import org.springframework.beans.factory.annotation.Value;
@@ -21,13 +22,15 @@ public class ProductionSafetyChecks {
     private final Environment environment;
     private final String adminPassword;
     private final StdioMcpProperties stdioMcpProperties;
+    private final ReceiptSigningKeyProvider receiptSigningKeyProvider;
 
     public ProductionSafetyChecks(Environment environment,
             @Value("${agentshield.security.default-admin-password}") String adminPassword,
-            StdioMcpProperties stdioMcpProperties) {
+            StdioMcpProperties stdioMcpProperties, ReceiptSigningKeyProvider receiptSigningKeyProvider) {
         this.environment = environment;
         this.adminPassword = adminPassword;
         this.stdioMcpProperties = stdioMcpProperties;
+        this.receiptSigningKeyProvider = receiptSigningKeyProvider;
     }
 
     @PostConstruct
@@ -58,6 +61,14 @@ public class ProductionSafetyChecks {
                             + "Kubernetes NetworkPolicy restricting egress, a seccomp/AppArmor profile, and pod "
                             + "resource limits — see §14), then set "
                             + "agentshield.stdio.external-sandbox-acknowledged=true to confirm this has been done.");
+        }
+        if (prod && receiptSigningKeyProvider.isEphemeral()) {
+            throw new IllegalStateException(
+                    "Refusing to start: the \"prod\" profile is active but agentshield.codetrust.signing-private-key/"
+                            + "signing-public-key are not configured, so an ephemeral Ed25519 keypair was generated for "
+                            + "this process only. Every AI-code-trust receipt signed would fail verification after the "
+                            + "next restart, since the public key would change. Generate and configure a persistent "
+                            + "keypair before starting a production deployment.");
         }
     }
 }

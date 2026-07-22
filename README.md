@@ -11,7 +11,10 @@ AgentShield is a runtime security gateway for AI agents. It sits between agents 
 - **Supply-chain provenance** — every tool version gets an automatic checksum record, plus opt-in Sigstore keyless signature verification (AgentShield only ever verifies — it never signs or holds a private key).
 - **Policy engine** — a versioned, testable rule set (least privilege, environment-aware, approval-gated), plus database-backed overrides for operator-added rules without a code change.
 - **Risk engine** — deterministic scoring by action category, environment, tool trust state, and detector confidence/category.
-- **Detectors** — deterministic prompt-injection and secret-pattern scanning of tool responses, with confidence levels and categories, no paid API required.
+- **Detectors** — deterministic prompt-injection, secret-pattern, and PII scanning of both inbound tool-call arguments and tool responses, with confidence levels and categories, no paid API required.
+- **DLP** — operator-configured classification profiles decide allow/redact/tokenize/block/approval-required per detector match; a standalone endpoint lets an external RAG ingestion pipeline classify a chunk before indexing it.
+- **Code Trust** — submit an AI-coding-assistant scan result (`scripts/agentshield-code-scan.sh` is a thin reference CLI, not a SAST engine); a CRITICAL/HIGH finding blocks the commit until a human reviews it, and a passing assessment gets a locally Ed25519-signed, independently verifiable receipt.
+- **SIEM export & SOC Validation** — a flat, SIEM-friendly event export plus a named `DetectionRule` catalog (15 identifiers, each with an optional MITRE ATT&CK reference); an in-process attack simulator replays 12 scenarios to prove the catalog still fires, and a vendor-neutral alert-import validator checks whether a downstream SIEM's actual alerts match what's expected.
 - **Approval workflow** — high-risk actions queue for human sign-off; approving executes the action immediately, with row-level locking so a duplicate approval can't execute it twice.
 - **Response forensics** — every tool response gets a hashed, sanitized forensic record (raw body retained only if explicitly enabled and encrypted).
 - **Audit trail** — every request produces a searchable, correlated, tamper-evident (hash-chained) audit record.
@@ -41,7 +44,7 @@ Then open `http://localhost:8080` for the dashboard.
 ## Documentation
 
 - [`docs/architecture.md`](docs/architecture.md) — components and request flow
-- [`docs/threat-model.md`](docs/threat-model.md) — the six risks AgentShield addresses and their controls
+- [`docs/threat-model.md`](docs/threat-model.md) — the seven risks AgentShield addresses and their controls
 - [`docs/policy-guide.md`](docs/policy-guide.md) — default policy rules, risk scoring, detection patterns
 - [`docs/api.md`](docs/api.md) — REST API reference
 - [`docs/deployment.md`](docs/deployment.md) — Docker Compose, Helm, Kubernetes
@@ -50,14 +53,14 @@ Then open `http://localhost:8080` for the dashboard.
 
 ## Project status
 
-Past MVP: the core gateway, policy/risk/detection engines, approval workflow, tamper-evident
-audit trail, agent token lifecycle, tool drift detection, MCP tool discovery and consent/OAuth
-authorization, tool/skill supply-chain provenance (checksums + opt-in Sigstore signature
-verification), response forensics, production hardening, and OpenAPI docs are implemented and
-tested (unit, integration, and negative-security-path coverage) against both PostgreSQL and
-MariaDB. `docs/threat-model.md` tracks known gaps not yet covered — notably local-tool
-sandboxing and governance evidence export — which are the current priorities. See the roadmap
-issues for what's next.
+Past MVP: the core gateway, policy/risk/detection engines, DLP scanning (inbound arguments,
+responses, and a standalone RAG-chunk endpoint), an AI-coding-assistant code-trust workflow
+(block/pass policy, human review, signed receipts), approval workflow, tamper-evident audit trail,
+agent token lifecycle, tool drift detection, MCP tool discovery and consent/OAuth authorization,
+tool/skill supply-chain provenance (checksums + opt-in Sigstore signature verification), response
+forensics, production hardening, and OpenAPI docs are implemented and tested (unit, integration,
+and negative-security-path coverage) against both PostgreSQL and MariaDB. `docs/threat-model.md`
+tracks known gaps not yet covered. See the roadmap issues for what's next.
 
 ## License
 
