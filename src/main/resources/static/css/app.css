@@ -93,10 +93,10 @@ a:not(.btn):not(.nav-link):not(.card) {
 }
 
 .stat-tile-icon-accent { background: var(--as-accent-soft); color: var(--as-accent); }
-.stat-tile-icon-success { background: var(--as-success-soft); color: var(--as-success); }
-.stat-tile-icon-warning { background: var(--as-warning-soft); color: var(--as-warning); }
-.stat-tile-icon-danger { background: var(--as-danger-soft); color: var(--as-danger); }
-.stat-tile-icon-info { background: var(--as-info-soft); color: var(--as-info); }
+.stat-tile-icon-success { background: var(--as-success-soft); color: var(--as-success-icon); }
+.stat-tile-icon-warning { background: var(--as-warning-soft); color: var(--as-warning-icon); }
+.stat-tile-icon-danger { background: var(--as-danger-soft); color: var(--as-danger-icon); }
+.stat-tile-icon-info { background: var(--as-info-soft); color: var(--as-info-icon); }
 .stat-tile-icon-muted { background: var(--as-surface-hover); color: var(--as-text-muted); }
 
 .stat-tile-label {

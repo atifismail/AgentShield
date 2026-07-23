@@ -41,6 +41,7 @@ $(function () {
         }
     });
 
+    applyChartJsTheme();
     initDashboardChart();
     initAuditIntegrityCheck();
     initDlpCharts();
@@ -49,6 +50,29 @@ $(function () {
     initSocValidationChart();
     initAppShell();
 });
+
+/**
+ * Chart.js defaults its tick/legend text to a fixed mid-gray and its grid lines to a fixed
+ * translucent black, neither of which adapt to this app's dark theme (dark grid lines are close
+ * to invisible against a dark canvas). Reads the same design tokens the rest of the page already
+ * themes with, once at startup -- charts don't need to re-theme live on toggle since switching
+ * theme mid-session is rare enough that a page reload (which every other in-progress interaction
+ * on these pages already assumes) picking up the new colors is an acceptable tradeoff here.
+ */
+function applyChartJsTheme() {
+    if (!window.Chart) {
+        return;
+    }
+    var styles = getComputedStyle(document.documentElement);
+    var textMuted = styles.getPropertyValue('--as-text-muted').trim();
+    var border = styles.getPropertyValue('--as-border').trim();
+    if (textMuted) {
+        Chart.defaults.color = textMuted;
+    }
+    if (border) {
+        Chart.defaults.borderColor = border;
+    }
+}
 
 /**
  * App-shell chrome: mobile off-canvas sidebar, desktop icon-rail collapse, theme toggle, and

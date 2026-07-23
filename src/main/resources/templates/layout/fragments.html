@@ -27,81 +27,81 @@
                     <span class="brand-text">AgentShield</span>
                 </a>
                 <button type="button" class="sidebar-close" id="sidebarClose" aria-label="Close menu">
-                    <span th:replace="~{layout/icons :: icon(name='close')}"></span>
+                    <span th:insert="~{layout/icons :: icon(name='close')}"></span>
                 </button>
             </div>
             <nav class="sidebar-nav" id="sidebarNav">
                 <div class="nav-group">
                     <div class="nav-group-title">Overview</div>
                     <a class="nav-link" th:href="@{/dashboard}">
-                        <span th:replace="~{layout/icons :: icon(name='dashboard')}"></span>
+                        <span th:insert="~{layout/icons :: icon(name='dashboard')}"></span>
                         <span class="nav-link-text">Dashboard</span>
                     </a>
                 </div>
                 <div class="nav-group">
                     <div class="nav-group-title">Agents &amp; Tools</div>
                     <a class="nav-link" th:href="@{/agents}">
-                        <span th:replace="~{layout/icons :: icon(name='agents')}"></span>
+                        <span th:insert="~{layout/icons :: icon(name='agents')}"></span>
                         <span class="nav-link-text">Agents</span>
                     </a>
                     <a class="nav-link" th:href="@{/tools}">
-                        <span th:replace="~{layout/icons :: icon(name='tools')}"></span>
+                        <span th:insert="~{layout/icons :: icon(name='tools')}"></span>
                         <span class="nav-link-text">Tools</span>
                     </a>
                     <a class="nav-link" th:href="@{/mcp-servers}">
-                        <span th:replace="~{layout/icons :: icon(name='mcp')}"></span>
+                        <span th:insert="~{layout/icons :: icon(name='mcp')}"></span>
                         <span class="nav-link-text">MCP Servers</span>
                     </a>
                 </div>
                 <div class="nav-group">
                     <div class="nav-group-title">Gateway &amp; Policy</div>
                     <a class="nav-link" th:href="@{/gateway-requests}">
-                        <span th:replace="~{layout/icons :: icon(name='requests')}"></span>
+                        <span th:insert="~{layout/icons :: icon(name='requests')}"></span>
                         <span class="nav-link-text">Requests</span>
                     </a>
                     <a class="nav-link" th:href="@{/approvals}">
-                        <span th:replace="~{layout/icons :: icon(name='approvals')}"></span>
+                        <span th:insert="~{layout/icons :: icon(name='approvals')}"></span>
                         <span class="nav-link-text">Approvals</span>
                     </a>
                     <a class="nav-link" th:href="@{/policies}">
-                        <span th:replace="~{layout/icons :: icon(name='policies')}"></span>
+                        <span th:insert="~{layout/icons :: icon(name='policies')}"></span>
                         <span class="nav-link-text">Policies</span>
                     </a>
                 </div>
                 <div class="nav-group">
                     <div class="nav-group-title">Security &amp; Compliance</div>
                     <a class="nav-link" th:href="@{/audit}">
-                        <span th:replace="~{layout/icons :: icon(name='audit')}"></span>
+                        <span th:insert="~{layout/icons :: icon(name='audit')}"></span>
                         <span class="nav-link-text">Audit</span>
                     </a>
                     <a class="nav-link" th:href="@{/incidents}">
-                        <span th:replace="~{layout/icons :: icon(name='incidents')}"></span>
+                        <span th:insert="~{layout/icons :: icon(name='incidents')}"></span>
                         <span class="nav-link-text">Incidents</span>
                     </a>
                     <a class="nav-link" th:href="@{/dlp}">
-                        <span th:replace="~{layout/icons :: icon(name='dlp')}"></span>
+                        <span th:insert="~{layout/icons :: icon(name='dlp')}"></span>
                         <span class="nav-link-text">DLP</span>
                     </a>
                     <a class="nav-link" th:href="@{/codetrust}">
-                        <span th:replace="~{layout/icons :: icon(name='codetrust')}"></span>
+                        <span th:insert="~{layout/icons :: icon(name='codetrust')}"></span>
                         <span class="nav-link-text">Code Trust</span>
                     </a>
                     <a class="nav-link" th:href="@{/governance}">
-                        <span th:replace="~{layout/icons :: icon(name='governance')}"></span>
+                        <span th:insert="~{layout/icons :: icon(name='governance')}"></span>
                         <span class="nav-link-text">Governance</span>
                     </a>
                     <a class="nav-link" th:href="@{/siem/coverage}">
-                        <span th:replace="~{layout/icons :: icon(name='coverage')}"></span>
+                        <span th:insert="~{layout/icons :: icon(name='coverage')}"></span>
                         <span class="nav-link-text">Detection Coverage</span>
                     </a>
                     <a class="nav-link" th:href="@{/siem/validation}">
-                        <span th:replace="~{layout/icons :: icon(name='validation')}"></span>
+                        <span th:insert="~{layout/icons :: icon(name='validation')}"></span>
                         <span class="nav-link-text">SOC Validation</span>
                     </a>
                 </div>
             </nav>
             <button type="button" class="sidebar-collapse-btn" id="sidebarCollapseToggle" aria-label="Collapse sidebar">
-                <span th:replace="~{layout/icons :: icon(name='collapse')}"></span>
+                <span th:insert="~{layout/icons :: icon(name='collapse')}"></span>
                 <span>Collapse</span>
             </button>
         </aside>
@@ -112,12 +112,12 @@
     <header class="app-topbar" th:fragment="topbar">
         <button type="button" class="topbar-toggle" id="sidebarToggle" aria-label="Open menu"
                 aria-controls="appSidebar" aria-expanded="false">
-            <span th:replace="~{layout/icons :: icon(name='menu')}"></span>
+            <span th:insert="~{layout/icons :: icon(name='menu')}"></span>
         </button>
         <div class="topbar-spacer"></div>
         <button type="button" class="theme-toggle" id="themeToggle" aria-label="Toggle color theme">
-            <span class="theme-icon-light" th:replace="~{layout/icons :: icon(name='sun')}"></span>
-            <span class="theme-icon-dark" th:replace="~{layout/icons :: icon(name='moon')}"></span>
+            <span class="theme-icon-light" th:insert="~{layout/icons :: icon(name='sun')}"></span>
+            <span class="theme-icon-dark" th:insert="~{layout/icons :: icon(name='moon')}"></span>
         </button>
         <div class="topbar-user" sec:authorize="isAuthenticated()" xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
             <span class="topbar-username">
@@ -126,7 +126,7 @@
             </span>
             <form th:action="@{/logout}" method="post" class="d-inline">
                 <button type="submit" class="topbar-logout" aria-label="Sign out" title="Sign out">
-                    <span th:replace="~{layout/icons :: icon(name='logout')}"></span>
+                    <span th:insert="~{layout/icons :: icon(name='logout')}"></span>
                 </button>
             </form>
         </div>

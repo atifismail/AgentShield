@@ -38,14 +38,24 @@
     --as-sidebar-border: rgba(255, 255, 255, .08);
     --as-sidebar-group-title: rgba(255, 255, 255, .38);
 
+    /* Solid, white-text-safe: also backs .badge (Bootstrap fixes --bs-badge-color to #fff), so
+       these must stay dark/saturated enough for white text in both themes -- never brightened
+       for dark mode the way --as-*-soft is. */
     --as-success: #198754;
-    --as-success-soft: #e9f7ef;
     --as-warning: #b45309;
-    --as-warning-soft: #fef3e2;
     --as-danger: #dc3545;
-    --as-danger-soft: #fdecec;
     --as-info: #0d6efd;
+
+    /* Soft tint + matching bright foreground, used only where the foreground paints an icon
+       glyph or text against the tint itself (stat tiles), never white-on-solid. */
+    --as-success-soft: #e9f7ef;
+    --as-success-icon: var(--as-success);
+    --as-warning-soft: #fef3e2;
+    --as-warning-icon: var(--as-warning);
+    --as-danger-soft: #fdecec;
+    --as-danger-icon: var(--as-danger);
     --as-info-soft: #e8f1ff;
+    --as-info-icon: var(--as-info);
 }
 
 [data-bs-theme="dark"] {
@@ -54,8 +64,9 @@
     --as-shadow-sm: 0 1px 2px rgba(0, 0, 0, .4);
     --as-shadow-md: 0 8px 24px -8px rgba(0, 0, 0, .55), 0 2px 6px -2px rgba(0, 0, 0, .35);
 
-    --as-accent: #818cf8;
-    --as-accent-hover: #a5b4fc;
+    /* --as-accent/--as-accent-hover intentionally NOT brightened here: they back .btn-primary's
+       solid fill with white text (indigo-600 is already the standard "safe with white text"
+       shade -- brightening it for dark mode would drop button-text contrast below WCAG AA). */
     --as-accent-soft: rgba(129, 140, 248, .16);
     --as-accent-contrast: #0b0e17;
 
@@ -68,14 +79,18 @@
     --as-sidebar-bg: #0a0b12;
     --as-sidebar-border: rgba(255, 255, 255, .06);
 
-    --as-success: #3ddc84;
+    /* --as-success/warning/danger/info intentionally NOT overridden here: they back solid
+       .badge fills with Bootstrap's fixed white badge text, and the light-theme values already
+       have safe contrast with white on a dark page too. Only the icon-only variants get a
+       brighter dark-mode color, since a glyph doesn't need text-level contrast. */
     --as-success-soft: rgba(61, 220, 132, .14);
-    --as-warning: #fbbf24;
+    --as-success-icon: #3ddc84;
     --as-warning-soft: rgba(251, 191, 36, .14);
-    --as-danger: #f87171;
+    --as-warning-icon: #fbbf24;
     --as-danger-soft: rgba(248, 113, 113, .14);
-    --as-info: #60a5fa;
+    --as-danger-icon: #f87171;
     --as-info-soft: rgba(96, 165, 250, .14);
+    --as-info-icon: #60a5fa;
 }
 
 * {

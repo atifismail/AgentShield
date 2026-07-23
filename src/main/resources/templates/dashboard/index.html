@@ -16,7 +16,7 @@
         <div class="col-6 col-md-4 col-xl-3">
             <div class="card h-100">
                 <div class="card-body stat-tile">
-                    <span class="stat-tile-icon stat-tile-icon-accent" th:replace="~{layout/icons :: icon(name='requests')}"></span>
+                    <span class="stat-tile-icon stat-tile-icon-accent" th:insert="~{layout/icons :: icon(name='requests')}"></span>
                     <div>
                         <div class="stat-tile-label">Requests (24h)</div>
                         <div class="stat-tile-value" th:text="${stats?.requestCount ?: 0}">0</div>
@@ -27,7 +27,7 @@
         <div class="col-6 col-md-4 col-xl-3">
             <div class="card h-100">
                 <div class="card-body stat-tile">
-                    <span class="stat-tile-icon stat-tile-icon-success" th:replace="~{layout/icons :: icon(name='approvals')}"></span>
+                    <span class="stat-tile-icon stat-tile-icon-success" th:insert="~{layout/icons :: icon(name='approvals')}"></span>
                     <div>
                         <div class="stat-tile-label">Allowed (24h)</div>
                         <div class="stat-tile-value" th:text="${stats?.allowCount ?: 0}">0</div>
@@ -38,7 +38,7 @@
         <div class="col-6 col-md-4 col-xl-3">
             <div class="card h-100">
                 <div class="card-body stat-tile">
-                    <span class="stat-tile-icon stat-tile-icon-danger" th:replace="~{layout/icons :: icon(name='blocked')}"></span>
+                    <span class="stat-tile-icon stat-tile-icon-danger" th:insert="~{layout/icons :: icon(name='blocked')}"></span>
                     <div>
                         <div class="stat-tile-label">Denied (24h)</div>
                         <div class="stat-tile-value" th:text="${stats?.denyCount ?: 0}">0</div>
@@ -49,7 +49,7 @@
         <div class="col-6 col-md-4 col-xl-3">
             <div class="card h-100">
                 <div class="card-body stat-tile">
-                    <span class="stat-tile-icon stat-tile-icon-warning" th:replace="~{layout/icons :: icon(name='approvals')}"></span>
+                    <span class="stat-tile-icon stat-tile-icon-warning" th:insert="~{layout/icons :: icon(name='approvals')}"></span>
                     <div>
                         <div class="stat-tile-label">Pending Approvals</div>
                         <div class="stat-tile-value" th:text="${stats?.pendingApprovalCount ?: 0}">0</div>
@@ -60,7 +60,7 @@
         <div class="col-6 col-md-4 col-xl-3">
             <div class="card h-100">
                 <div class="card-body stat-tile">
-                    <span class="stat-tile-icon stat-tile-icon-danger" th:replace="~{layout/icons :: icon(name='agents')}"></span>
+                    <span class="stat-tile-icon stat-tile-icon-danger" th:insert="~{layout/icons :: icon(name='agents')}"></span>
                     <div>
                         <div class="stat-tile-label">High-Risk Agents</div>
                         <div class="stat-tile-value" th:text="${stats?.highRiskAgentCount ?: 0}">0</div>
@@ -71,7 +71,7 @@
         <div class="col-6 col-md-4 col-xl-3">
             <div class="card h-100">
                 <div class="card-body stat-tile">
-                    <span class="stat-tile-icon stat-tile-icon-warning" th:replace="~{layout/icons :: icon(name='tools')}"></span>
+                    <span class="stat-tile-icon stat-tile-icon-warning" th:insert="~{layout/icons :: icon(name='tools')}"></span>
                     <div>
                         <div class="stat-tile-label">Tool Drift</div>
                         <div class="stat-tile-value" th:text="${stats?.toolDriftCount ?: 0}">0</div>
@@ -82,7 +82,7 @@
         <div class="col-6 col-md-4 col-xl-3">
             <div class="card h-100">
                 <div class="card-body stat-tile">
-                    <span class="stat-tile-icon stat-tile-icon-warning" th:replace="~{layout/icons :: icon(name='incidents')}"></span>
+                    <span class="stat-tile-icon stat-tile-icon-warning" th:insert="~{layout/icons :: icon(name='incidents')}"></span>
                     <div>
                         <div class="stat-tile-label">Open Incidents</div>
                         <div class="stat-tile-value" th:text="${stats?.openIncidentCount ?: 0}">0</div>
@@ -93,7 +93,7 @@
         <div class="col-6 col-md-4 col-xl-3">
             <div class="card h-100">
                 <div class="card-body stat-tile">
-                    <span class="stat-tile-icon stat-tile-icon-danger" th:replace="~{layout/icons :: icon(name='incidents')}"></span>
+                    <span class="stat-tile-icon stat-tile-icon-danger" th:insert="~{layout/icons :: icon(name='incidents')}"></span>
                     <div>
                         <div class="stat-tile-label">Critical Incidents</div>
                         <div class="stat-tile-value" th:text="${stats?.criticalIncidentCount ?: 0}">0</div>
@@ -116,7 +116,7 @@
             <div class="card h-100">
                 <div class="card-header">Recent incidents</div>
                 <div class="empty-state" th:if="${#lists.isEmpty(recentIncidents)}">
-                    <span th:replace="~{layout/icons :: icon(name='inbox')}"></span>
+                    <span th:insert="~{layout/icons :: icon(name='inbox')}"></span>
                     <p>No incidents recorded.</p>
                 </div>
                 <ul class="list-group list-group-flush" id="recentIncidentsList" th:unless="${#lists.isEmpty(recentIncidents)}">
