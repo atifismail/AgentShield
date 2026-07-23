@@ -119,8 +119,10 @@ function initAppShell() {
 
     if (collapseToggle) {
         var setCollapseToggleState = function (collapsed) {
+            var label = collapsed ? 'Expand sidebar' : 'Collapse sidebar';
             collapseToggle.setAttribute('aria-pressed', collapsed ? 'true' : 'false');
-            collapseToggle.setAttribute('aria-label', collapsed ? 'Expand sidebar' : 'Collapse sidebar');
+            collapseToggle.setAttribute('aria-label', label);
+            collapseToggle.setAttribute('title', label);
         };
         try {
             if (localStorage.getItem('agentshield-sidebar-collapsed') === '1') {

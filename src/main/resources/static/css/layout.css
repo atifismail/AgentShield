@@ -131,24 +131,34 @@
     text-overflow: ellipsis;
 }
 
+/* A small round handle mounted on the sidebar's own edge, vertically centered on the topbar
+   row -- always visible with no dedicated row needed in the nav flow (the previous full-width
+   bottom bar sat by itself over an awkward empty gap). `right` is relative to .app-sidebar's own
+   box, so it rides along automatically as the sidebar's width animates between expanded and
+   collapsed -- no separate position rule needed per state. */
 .sidebar-collapse-btn {
     display: none;
+    position: absolute;
+    top: calc(var(--as-topbar-height) / 2);
+    right: -.9375rem;
+    transform: translateY(-50%);
     align-items: center;
     justify-content: center;
-    gap: .5rem;
-    margin: .5rem .75rem 1rem;
-    padding: .5rem;
+    width: 1.875rem;
+    height: 1.875rem;
+    padding: 0;
     border: 1px solid var(--as-sidebar-border);
-    border-radius: var(--as-radius-sm);
-    background: none;
+    border-radius: 50%;
+    background: var(--as-sidebar-bg);
     color: var(--as-sidebar-text);
-    font-size: .8125rem;
+    box-shadow: var(--as-shadow-sm);
+    z-index: 5;
 }
 
 .sidebar-collapse-btn svg {
     flex-shrink: 0;
-    width: 1.125rem;
-    height: 1.125rem;
+    width: 1rem;
+    height: 1rem;
     transition: transform var(--as-transition);
 }
 
@@ -278,8 +288,7 @@ body.sidebar-collapsed .app-shell {
 
 body.sidebar-collapsed .brand-text,
 body.sidebar-collapsed .nav-group-title,
-body.sidebar-collapsed .nav-link-text,
-body.sidebar-collapsed .sidebar-collapse-btn-label {
+body.sidebar-collapsed .nav-link-text {
     display: none;
 }
 
