@@ -14,6 +14,7 @@ import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.security.web.csrf.CookieCsrfTokenRepository;
+import org.springframework.security.web.csrf.CsrfTokenRequestAttributeHandler;
 import org.springframework.security.web.header.writers.ReferrerPolicyHeaderWriter;
 
 /**
@@ -106,8 +107,17 @@ public class SecurityConfig {
         // client authenticating with Basic Auth is exempted — otherwise no stateless client
         // could ever call a state-changing endpoint (CSRF is enforced in the filter chain before
         // Basic Auth even runs, so without this exemption every such call gets a bogus 401).
+        // Spring Security 6's default CsrfTokenRequestHandler (XorCsrfTokenRequestAttributeHandler)
+        // BREACH-masks the token it hands to <form> rendering, which is incompatible with the
+        // "JS reads the raw XSRF-TOKEN cookie and echoes it in an X-XSRF-TOKEN header" pattern
+        // app.js uses for every AJAX call: the masked value the default handler expects never
+        // matches the raw cookie value a script actually has access to, so every AJAX POST/PUT/
+        // DELETE would 403 regardless of a valid session and role. CookieCsrfTokenRepository always
+        // stores the raw token in the cookie precisely so JS can read it directly, so the plain
+        // (non-XOR) handler is the one that's actually compatible with it.
         http.csrf(csrf -> csrf
                 .csrfTokenRepository(CookieCsrfTokenRepository.withHttpOnlyFalse())
+                .csrfTokenRequestHandler(new CsrfTokenRequestAttributeHandler())
                 .ignoringRequestMatchers("/api/gateway/**", "/demo/**")
                 .ignoringRequestMatchers(request -> {
                     String header = request.getHeader("Authorization");
