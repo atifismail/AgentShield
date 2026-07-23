@@ -118,13 +118,19 @@ function initAppShell() {
     }
 
     if (collapseToggle) {
+        var setCollapseToggleState = function (collapsed) {
+            collapseToggle.setAttribute('aria-pressed', collapsed ? 'true' : 'false');
+            collapseToggle.setAttribute('aria-label', collapsed ? 'Expand sidebar' : 'Collapse sidebar');
+        };
         try {
             if (localStorage.getItem('agentshield-sidebar-collapsed') === '1') {
                 body.classList.add('sidebar-collapsed');
             }
         } catch (e) { /* localStorage unavailable */ }
+        setCollapseToggleState(body.classList.contains('sidebar-collapsed'));
         collapseToggle.addEventListener('click', function () {
             var collapsed = body.classList.toggle('sidebar-collapsed');
+            setCollapseToggleState(collapsed);
             try {
                 localStorage.setItem('agentshield-sidebar-collapsed', collapsed ? '1' : '0');
             } catch (e) { /* localStorage unavailable */ }

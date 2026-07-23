@@ -100,9 +100,10 @@
                     </a>
                 </div>
             </nav>
-            <button type="button" class="sidebar-collapse-btn" id="sidebarCollapseToggle" aria-label="Collapse sidebar">
+            <button type="button" class="sidebar-collapse-btn" id="sidebarCollapseToggle" aria-label="Collapse sidebar"
+                    aria-pressed="false">
                 <span th:insert="~{layout/icons :: icon(name='collapse')}"></span>
-                <span>Collapse</span>
+                <span class="sidebar-collapse-btn-label">Collapse</span>
             </button>
         </aside>
         <div class="sidebar-backdrop" id="sidebarBackdrop"></div>

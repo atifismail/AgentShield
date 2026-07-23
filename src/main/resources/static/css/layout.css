@@ -57,6 +57,11 @@
     border-radius: var(--as-radius-sm);
 }
 
+.sidebar-close svg {
+    width: 1.125rem;
+    height: 1.125rem;
+}
+
 .sidebar-close:hover {
     color: var(--as-sidebar-text-active);
     background: var(--as-sidebar-active-bg);
@@ -137,6 +142,14 @@
     border-radius: var(--as-radius-sm);
     background: none;
     color: var(--as-sidebar-text);
+    font-size: .8125rem;
+}
+
+.sidebar-collapse-btn svg {
+    flex-shrink: 0;
+    width: 1.125rem;
+    height: 1.125rem;
+    transition: transform var(--as-transition);
 }
 
 .sidebar-collapse-btn:hover {
@@ -266,12 +279,20 @@ body.sidebar-collapsed .app-shell {
 body.sidebar-collapsed .brand-text,
 body.sidebar-collapsed .nav-group-title,
 body.sidebar-collapsed .nav-link-text,
-body.sidebar-collapsed .sidebar-collapse-btn span {
+body.sidebar-collapsed .sidebar-collapse-btn-label {
     display: none;
 }
 
 body.sidebar-collapsed .sidebar-nav .nav-link {
     justify-content: center;
+}
+
+/* Rotated rather than swapped for a different icon: same affordance pattern as a disclosure
+   triangle, so it's visually obvious the collapsed state is reversible by clicking the same
+   button again -- this is the fix for the button appearing to "disappear with no way back",
+   which was actually the *label* selector above accidentally also matching the icon span. */
+body.sidebar-collapsed .sidebar-collapse-btn svg {
+    transform: rotate(180deg);
 }
 
 @media (min-width: 992px) {

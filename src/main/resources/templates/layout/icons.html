@@ -10,7 +10,16 @@
 */-->
 <html xmlns:th="http://www.thymeleaf.org">
 <body>
+<!--/*
+    width/height="1em" is a safety-net default (an SVG with neither an explicit size nor a CSS
+    rule targeting it renders at the browser's intrinsic default, ~300x150px -- exactly the "big
+    unstyled icon" bug this project already hit twice). 1em scales with the host element's
+    font-size, giving a sane ~16px icon anywhere with no CSS at all; any specific spot that needs a
+    different size (stat tiles, empty states, nav links) still overrides it with an explicit
+    width/height in its own CSS rule, which wins over this attribute-level default.
+*/-->
 <svg th:fragment="icon(name)" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
+     width="1em" height="1em"
      stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"
      aria-hidden="true" th:switch="${name}">
     <g th:case="'dashboard'">
