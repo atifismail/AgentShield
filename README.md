@@ -1,8 +1,8 @@
 # AgentShield
 
-AgentShield is a runtime security gateway for AI agents. It sits between agents and the tools they call, enforces allow/deny/approval policy on every tool invocation, detects poisoned tools and malicious tool responses, and keeps a complete audit trail.
+**Open-source AI Agent Security Gateway.** AgentShield sits between agents and the tools they call, enforces allow/deny/approval policy on every tool invocation, detects poisoned tools and malicious tool responses, and keeps a complete audit trail.
 
-> Secure AI agents before they touch production systems.
+> Stop unsafe AI agent actions before they reach production systems.
 
 ## What it does
 
@@ -51,6 +51,12 @@ Then open `http://localhost:8080` for the dashboard.
 - [`docs/operations.md`](docs/operations.md) — configuration, backups, production checklist
 - [`docs/demo-lab.md`](docs/demo-lab.md) — run the 5 scripted attack scenarios against a live instance
 
+## Community & support
+
+- [`CONTRIBUTING.md`](CONTRIBUTING.md) — build/test workflow, PR process, security disclosure
+- [`ROADMAP.md`](ROADMAP.md) — what's shipped, planned, and under consideration
+- [`SUPPORT.md`](SUPPORT.md) — community support channels and commercial support options
+
 ## Project status
 
 Past MVP: the core gateway, policy/risk/detection engines, DLP scanning (inbound arguments,
@@ -60,7 +66,7 @@ agent token lifecycle, tool drift detection, MCP tool discovery and consent/OAut
 tool/skill supply-chain provenance (checksums + opt-in Sigstore signature verification), response
 forensics, production hardening, and OpenAPI docs are implemented and tested (unit, integration,
 and negative-security-path coverage) against both PostgreSQL and MariaDB. `docs/threat-model.md`
-tracks known gaps not yet covered. See the roadmap issues for what's next.
+tracks known gaps not yet covered. See [`ROADMAP.md`](ROADMAP.md) for what's next.
 
 ## License
 
