@@ -88,11 +88,15 @@ class DlpGatewayIntegrationTest extends AbstractIntegrationTest {
     }
 
     private Tool createTool(String group) {
+        return createTool(group, "/demo/mock-tool/echo");
+    }
+
+    private Tool createTool(String group, String endpointPath) {
         Tool tool = new Tool();
         tool.setName("dlp-test-tool-" + System.nanoTime());
         tool.setType(ToolType.DATABASE);
         tool.setToolGroup(group);
-        tool.setEndpointUrl("/demo/mock-tool/echo");
+        tool.setEndpointUrl(endpointPath);
         tool.setApprovalStatus(ToolApprovalStatus.APPROVED);
         tool.setApprovedHash("h");
         tool.setCurrentHash("h");
@@ -157,5 +161,54 @@ class DlpGatewayIntegrationTest extends AbstractIntegrationTest {
         assertThat(response.result().get("query").asText())
                 .contains("[REDACTED:CREDENTIAL]")
                 .doesNotContain("AKIAABCDEFGHIJKLMNOP");
+    }
+
+    /**
+     * Before the tool-result DLP wiring, {@code GatewayService.executeAndScan} only ran
+     * {@code SecretDetector}/{@code PromptInjectionDetector} against a tool's response — PII (an
+     * SSN here) sailed through untouched even though the exact same content arriving as an
+     * inbound tool *argument* would have been caught by the test above. This proves the response
+     * path is now governed by the same DLP engine, not just ad hoc detectors.
+     */
+    @Test
+    void piiInToolResponseIsBlockedByBuiltInDefaultProfile() {
+        Agent agent = createAgent("database");
+        Tool tool = createTool("database", "/demo/mock-tool/pii");
+        var input = objectMapper.createObjectNode().put("query", "look up customer record");
+
+        var response = invoke(tool, input);
+
+        assertThat(response.decision()).isEqualTo(PolicyDecisionType.DENY);
+        assertThat(response.reason()).contains("ssn-like").contains("DLP");
+        assertThat(response.reason()).doesNotContain("123-45-6789");
+    }
+
+    @Test
+    void ordinaryToolResponseIsUnaffectedByDlpScan() {
+        Agent agent = createAgent("database");
+        Tool tool = createTool("database", "/demo/mock-tool/echo");
+        var input = objectMapper.createObjectNode().put("query", "select all active users");
+
+        var response = invoke(tool, input);
+
+        assertThat(response.decision()).isEqualTo(PolicyDecisionType.ALLOW);
+    }
+
+    @Test
+    void redactProfileSanitizesToolResponseInsteadOfBlockingTheCall() {
+        var profile = profileService.create(new CreateProfileRequest("test-redact-response-profile", null, true, true,
+                true, null, DlpAction.REDACT, 1), "security-analyst");
+        createdProfileIds.add(profile.getId());
+
+        Agent agent = createAgent("database");
+        Tool tool = createTool("database", "/demo/mock-tool/pii");
+        var input = objectMapper.createObjectNode().put("query", "look up customer record");
+
+        var response = invoke(tool, input);
+
+        assertThat(response.decision()).isEqualTo(PolicyDecisionType.ALLOW);
+        assertThat(response.result().get("note").asText())
+                .contains("[REDACTED:NATIONAL_ID]")
+                .doesNotContain("123-45-6789");
     }
 }

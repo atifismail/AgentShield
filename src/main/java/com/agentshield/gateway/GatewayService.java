@@ -276,10 +276,29 @@ public class GatewayService {
         var responsePolicyTimer = metrics.startTimer();
         PolicyOutcome responseOutcome = policyEngine.evaluateResponse(destinationExternal, secretResult, injectionResult);
         metrics.stopPolicyEvaluationTimer(responsePolicyTimer);
-        boolean blocked = !responseOutcome.isAllow();
 
-        recordToolResponse(gatewayRequest, callResult, blocked, blocked ? responseOutcome.reason() : null,
-                secretResult, injectionResult);
+        // DLP scan of the tool's response — same "only tighten, never weaken" precedence as the
+        // inbound tool-argument scan in doInvoke: only runs when the fixed secret/injection checks
+        // above would otherwise ALLOW, and layers in PII/custom-pattern detection that
+        // evaluateResponse alone never covers. The tool call has already executed by this point, so
+        // there is no one left to ask for approval — an APPROVAL_REQUIRED profile action is treated
+        // as a hard deny of releasing the response rather than a pause.
+        PolicyOutcome finalOutcome = responseOutcome;
+        JsonNode responseBody = callResult.parsedBody();
+        DlpScanResult dlpResult = null;
+        if (responseOutcome.isAllow()) {
+            dlpResult = dlpScanService.scan(callResult.rawBody(), ContentStage.TOOL_RESULT, correlationId);
+            PolicyOutcome dlpOutcome = policyEngine.evaluateDlp(dlpResult.action(), dlpResult.matches());
+            if (!dlpOutcome.isAllow()) {
+                finalOutcome = dlpOutcome;
+            } else if (dlpResult.action() == DlpAction.REDACT || dlpResult.action() == DlpAction.TOKENIZE) {
+                responseBody = parseJsonSafely(dlpResult.outputText(), responseBody);
+            }
+        }
+        boolean blocked = !finalOutcome.isAllow();
+
+        recordToolResponse(gatewayRequest, callResult, blocked, blocked ? finalOutcome.reason() : null,
+                secretResult, injectionResult, dlpResult);
 
         if (blocked) {
             metrics.responseBlocked();
@@ -290,21 +309,21 @@ public class GatewayService {
             RiskAssessment finalRisk = riskScorer.score(rescored);
 
             gatewayRequest.setStatus(GatewayRequestStatus.FAILED);
-            recordDecision(gatewayRequest, PolicyDecisionType.DENY, responseOutcome.ruleId(), responseOutcome.reason(),
+            recordDecision(gatewayRequest, PolicyDecisionType.DENY, finalOutcome.ruleId(), finalOutcome.reason(),
                     finalRisk.score(), RiskLevel.CRITICAL);
             var auditEvent = auditService.record(correlationId, "gateway.response_blocked", ActorType.SYSTEM,
                     "response-scanner", gatewayRequest.getAgent().getId(), tool.getId(), AuditSeverity.CRITICAL,
-                    responseOutcome.reason(), null);
-            incidentService.createFromFinding("Blocked tool response: " + responseOutcome.ruleId(),
-                    responseOutcome.reason(), auditEvent.getId(), gatewayRequest.getId());
-            return InvokeResponse.deny(RiskLevel.CRITICAL, responseOutcome.reason());
+                    finalOutcome.reason(), null);
+            incidentService.createFromFinding("Blocked tool response: " + finalOutcome.ruleId(),
+                    finalOutcome.reason(), auditEvent.getId(), gatewayRequest.getId());
+            return InvokeResponse.deny(RiskLevel.CRITICAL, finalOutcome.reason());
         }
 
         gatewayRequest.setStatus(GatewayRequestStatus.COMPLETED);
         auditService.record(correlationId, "gateway.allowed", ActorType.SYSTEM, "gateway",
                 gatewayRequest.getAgent().getId(), tool.getId(), AuditSeverity.INFO,
                 "call allowed and forwarded to tool '" + tool.getName() + "'", null);
-        return InvokeResponse.allow(preCallRisk.level(), callResult.parsedBody());
+        return InvokeResponse.allow(preCallRisk.level(), responseBody);
     }
 
     private GatewayRequest persistRequest(String correlationId, Agent agent, Tool tool, InvokeRequest request,
@@ -333,7 +352,7 @@ public class GatewayService {
      */
     private void recordToolResponse(GatewayRequest gatewayRequest, ToolForwarder.ToolCallResult callResult,
             boolean blocked, String blockReason, com.agentshield.risk.DetectionResult secretResult,
-            com.agentshield.risk.DetectionResult injectionResult) {
+            com.agentshield.risk.DetectionResult injectionResult, DlpScanResult dlpResult) {
         GatewayToolResponse response = new GatewayToolResponse();
         response.setGatewayRequest(gatewayRequest);
         response.setStatusCode(callResult.statusCode());
@@ -351,6 +370,9 @@ public class GatewayService {
         ArrayNode matches = objectMapper.createArrayNode();
         appendMatches(matches, secretResult);
         appendMatches(matches, injectionResult);
+        if (dlpResult != null) {
+            appendMatches(matches, dlpResult.matches());
+        }
         if (!matches.isEmpty()) {
             response.setDetectorMatchesJson(matches.toString());
         }
@@ -363,7 +385,11 @@ public class GatewayService {
     }
 
     private void appendMatches(ArrayNode target, com.agentshield.risk.DetectionResult result) {
-        for (com.agentshield.risk.DetectionMatch match : result.matches()) {
+        appendMatches(target, result.matches());
+    }
+
+    private void appendMatches(ArrayNode target, List<com.agentshield.risk.DetectionMatch> matches) {
+        for (com.agentshield.risk.DetectionMatch match : matches) {
             ObjectNode entry = objectMapper.createObjectNode();
             entry.put("indicator", match.indicator());
             entry.put("category", match.category().name());
