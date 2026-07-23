@@ -116,8 +116,13 @@
     color: var(--as-sidebar-text-active);
 }
 
+/* The sidebar is always dark, in both light and dark app themes -- --as-accent-soft is *not*
+   safe to reuse here since in light mode it's an opaque pale lavender meant for a light
+   surface (#eef2ff), which on the dark sidebar produced a low-contrast, hard-to-read pale
+   rectangle. This is a translucent tint instead, dark-safe by construction, independent of the
+   app theme, matching the accent-colored icon it sits behind. */
 .sidebar-nav .nav-link.active {
-    background: var(--as-accent-soft);
+    background: rgba(129, 140, 248, .18);
     color: var(--as-sidebar-text-active);
 }
 
@@ -131,17 +136,29 @@
     text-overflow: ellipsis;
 }
 
-/* A small round handle mounted on the sidebar's own edge, vertically centered on the topbar
-   row -- always visible with no dedicated row needed in the nav flow (the previous full-width
-   bottom bar sat by itself over an awkward empty gap). `right` is relative to .app-sidebar's own
-   box, so it rides along automatically as the sidebar's width animates between expanded and
-   collapsed -- no separate position rule needed per state. */
-.sidebar-collapse-btn {
+/* A dedicated row below the brand header, entirely within the sidebar's own box -- not an edge
+   handle straddling the sidebar/content border (an earlier version overlapped it, which read as
+   "in the middle of the page"). Right-aligned when expanded, centered when collapsed, so it
+   never has to compete for space with the brand mark in the narrow collapsed rail. */
+.sidebar-collapse-row {
     display: none;
-    position: absolute;
-    top: calc(var(--as-topbar-height) / 2);
-    right: -.9375rem;
-    transform: translateY(-50%);
+    justify-content: flex-end;
+    padding: .625rem .75rem 0;
+    flex-shrink: 0;
+}
+
+@media (min-width: 992px) {
+    .sidebar-collapse-row {
+        display: flex;
+    }
+}
+
+body.sidebar-collapsed .sidebar-collapse-row {
+    justify-content: center;
+}
+
+.sidebar-collapse-btn {
+    display: flex;
     align-items: center;
     justify-content: center;
     width: 1.875rem;
@@ -149,10 +166,8 @@
     padding: 0;
     border: 1px solid var(--as-sidebar-border);
     border-radius: 50%;
-    background: var(--as-sidebar-bg);
+    background: none;
     color: var(--as-sidebar-text);
-    box-shadow: var(--as-shadow-sm);
-    z-index: 5;
 }
 
 .sidebar-collapse-btn svg {
@@ -302,12 +317,6 @@ body.sidebar-collapsed .sidebar-nav .nav-link {
    which was actually the *label* selector above accidentally also matching the icon span. */
 body.sidebar-collapsed .sidebar-collapse-btn svg {
     transform: rotate(180deg);
-}
-
-@media (min-width: 992px) {
-    .sidebar-collapse-btn {
-        display: flex;
-    }
 }
 
 /* Mobile: sidebar becomes an off-canvas panel */

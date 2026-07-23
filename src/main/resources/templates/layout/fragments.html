@@ -30,6 +30,12 @@
                     <span th:insert="~{layout/icons :: icon(name='close')}"></span>
                 </button>
             </div>
+            <div class="sidebar-collapse-row">
+                <button type="button" class="sidebar-collapse-btn" id="sidebarCollapseToggle"
+                        aria-label="Collapse sidebar" title="Collapse sidebar" aria-pressed="false">
+                    <span th:insert="~{layout/icons :: icon(name='collapse')}"></span>
+                </button>
+            </div>
             <nav class="sidebar-nav" id="sidebarNav">
                 <div class="nav-group">
                     <div class="nav-group-title">Overview</div>
@@ -100,10 +106,6 @@
                     </a>
                 </div>
             </nav>
-            <button type="button" class="sidebar-collapse-btn" id="sidebarCollapseToggle" aria-label="Collapse sidebar"
-                    title="Collapse sidebar" aria-pressed="false">
-                <span th:insert="~{layout/icons :: icon(name='collapse')}"></span>
-            </button>
         </aside>
         <div class="sidebar-backdrop" id="sidebarBackdrop"></div>
     </th:block>
