@@ -1,33 +1,142 @@
-body {
-    background-color: #f5f6f8;
-}
+/* Component-level polish layered on top of theme.css (tokens) and layout.css (app shell). */
 
 .navbar-brand {
     letter-spacing: 0.02em;
 }
 
-.card {
-    border: 1px solid rgba(0, 0, 0, 0.08);
+.page-header {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: .75rem;
+    margin-bottom: 1.5rem;
 }
 
-.risk-badge-low { background-color: #198754; }
-.risk-badge-medium { background-color: #fd7e14; }
-.risk-badge-high { background-color: #dc3545; }
-.risk-badge-critical { background-color: #6f0000; }
+.page-header h1 {
+    margin-bottom: .25rem;
+    font-size: 1.375rem;
+    font-weight: 650;
+    letter-spacing: -.01em;
+}
 
-.status-badge-approved, .status-badge-allow, .status-badge-completed, .status-badge-enabled { background-color: #198754; }
-.status-badge-pending, .status-badge-approval_required, .status-badge-pending_approval { background-color: #fd7e14; }
-.status-badge-drifted, .status-badge-expired { background-color: #ffc107; color: #212529; }
-.status-badge-rejected, .status-badge-deny, .status-badge-denied, .status-badge-failed, .status-badge-disabled { background-color: #dc3545; }
-.status-badge-info { background-color: #6c757d; }
-.status-badge-warning { background-color: #fd7e14; }
-.status-badge-critical { background-color: #6f0000; }
-.status-badge-open { background-color: #dc3545; }
-.status-badge-acknowledged { background-color: #fd7e14; }
-.status-badge-resolved { background-color: #6c757d; }
-.status-badge-false_positive { background-color: #0d6efd; }
-.status-badge-active { background-color: #198754; }
-.status-badge-revoked { background-color: #dc3545; }
+.page-header .page-subtitle {
+    color: var(--as-text-muted);
+    font-size: .875rem;
+    margin: 0;
+}
+
+.card {
+    background-color: var(--as-surface);
+    border: 1px solid var(--as-border);
+    border-radius: var(--as-radius-md);
+    box-shadow: var(--as-shadow-sm);
+}
+
+.card-header {
+    background-color: transparent;
+    border-bottom: 1px solid var(--as-border);
+    font-weight: 600;
+    font-size: .9rem;
+}
+
+.btn {
+    border-radius: var(--as-radius-sm);
+    font-weight: 500;
+}
+
+.btn-primary {
+    background-color: var(--as-accent);
+    border-color: var(--as-accent);
+}
+
+.btn-primary:hover, .btn-primary:focus {
+    background-color: var(--as-accent-hover);
+    border-color: var(--as-accent-hover);
+}
+
+.btn-outline-primary {
+    color: var(--as-accent);
+    border-color: var(--as-accent);
+}
+
+.btn-outline-primary:hover {
+    background-color: var(--as-accent);
+    border-color: var(--as-accent);
+}
+
+a:not(.btn):not(.nav-link):not(.card) {
+    color: var(--as-accent);
+}
+
+/* Stat tiles (dashboard KPI cards) */
+.stat-tile {
+    display: flex;
+    align-items: flex-start;
+    gap: .875rem;
+    height: 100%;
+}
+
+.stat-tile-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2.5rem;
+    height: 2.5rem;
+    flex-shrink: 0;
+    border-radius: var(--as-radius-sm);
+}
+
+.stat-tile-icon svg {
+    width: 1.25rem;
+    height: 1.25rem;
+}
+
+.stat-tile-icon-accent { background: var(--as-accent-soft); color: var(--as-accent); }
+.stat-tile-icon-success { background: var(--as-success-soft); color: var(--as-success); }
+.stat-tile-icon-warning { background: var(--as-warning-soft); color: var(--as-warning); }
+.stat-tile-icon-danger { background: var(--as-danger-soft); color: var(--as-danger); }
+.stat-tile-icon-info { background: var(--as-info-soft); color: var(--as-info); }
+.stat-tile-icon-muted { background: var(--as-surface-hover); color: var(--as-text-muted); }
+
+.stat-tile-label {
+    font-size: .78rem;
+    color: var(--as-text-muted);
+    margin-bottom: .125rem;
+}
+
+.stat-tile-value {
+    font-size: 1.5rem;
+    font-weight: 650;
+    line-height: 1.2;
+    letter-spacing: -.01em;
+}
+
+/* Badges: recolored onto the same soft/solid tokens used everywhere else */
+.risk-badge-low { background-color: var(--as-success) !important; }
+.risk-badge-medium { background-color: var(--as-warning) !important; }
+.risk-badge-high { background-color: var(--as-danger) !important; }
+.risk-badge-critical { background-color: #7c1d1d !important; }
+
+.status-badge-approved, .status-badge-allow, .status-badge-completed, .status-badge-enabled { background-color: var(--as-success) !important; }
+.status-badge-pending, .status-badge-approval_required, .status-badge-pending_approval { background-color: var(--as-warning) !important; }
+.status-badge-drifted, .status-badge-expired { background-color: #ffc107 !important; color: #212529 !important; }
+.status-badge-rejected, .status-badge-deny, .status-badge-denied, .status-badge-failed, .status-badge-disabled { background-color: var(--as-danger) !important; }
+.status-badge-info { background-color: #6c757d !important; }
+.status-badge-warning { background-color: var(--as-warning) !important; }
+.status-badge-critical { background-color: #7c1d1d !important; }
+.status-badge-open { background-color: var(--as-danger) !important; }
+.status-badge-acknowledged { background-color: var(--as-warning) !important; }
+.status-badge-resolved { background-color: #6c757d !important; }
+.status-badge-false_positive { background-color: var(--as-info) !important; }
+.status-badge-active { background-color: var(--as-success) !important; }
+.status-badge-revoked { background-color: var(--as-danger) !important; }
+
+.badge {
+    font-weight: 600;
+    letter-spacing: .01em;
+    border-radius: .375rem;
+}
 
 code.hash {
     font-size: 0.8rem;
@@ -36,4 +145,72 @@ code.hash {
 .text-monospace-sm {
     font-family: var(--bs-font-monospace);
     font-size: 0.85rem;
+}
+
+/* Tables / DataTables */
+.table {
+    --bs-table-bg: transparent;
+}
+
+.table > :not(caption) > * > * {
+    border-bottom-color: var(--as-border);
+}
+
+.table thead th {
+    font-size: .72rem;
+    text-transform: uppercase;
+    letter-spacing: .05em;
+    color: var(--as-text-muted);
+    font-weight: 700;
+    border-bottom-width: 1px;
+}
+
+div.dataTables_wrapper div.dataTables_filter input,
+div.dataTables_wrapper div.dataTables_length select {
+    border-radius: var(--as-radius-sm);
+}
+
+div.dataTables_wrapper div.dataTables_paginate .paginate_button.current,
+div.dataTables_wrapper div.dataTables_paginate .paginate_button.current:hover {
+    background: var(--as-accent) !important;
+    border-color: var(--as-accent) !important;
+    color: #fff !important;
+}
+
+/* Login page */
+.login-body {
+    background:
+        radial-gradient(circle at 15% 15%, rgba(129, 140, 248, .25), transparent 45%),
+        radial-gradient(circle at 85% 85%, rgba(147, 51, 234, .22), transparent 45%),
+        var(--as-sidebar-bg);
+}
+
+.login-card {
+    width: 100%;
+    max-width: 24rem;
+    margin: 1rem;
+    border-radius: var(--as-radius-lg);
+    box-shadow: var(--as-shadow-md);
+}
+
+.max-w-form {
+    max-width: 32rem;
+}
+
+/* Empty states */
+.empty-state {
+    text-align: center;
+    padding: 2.5rem 1.5rem;
+    color: var(--as-text-muted);
+}
+
+.empty-state svg {
+    width: 2.5rem;
+    height: 2.5rem;
+    margin-bottom: .75rem;
+    opacity: .5;
+}
+
+.empty-state p {
+    margin-bottom: 0;
 }

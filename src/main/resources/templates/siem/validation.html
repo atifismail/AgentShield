@@ -2,8 +2,10 @@
 <html lang="en" xmlns:th="http://www.thymeleaf.org">
 <head th:replace="~{layout/fragments :: head(title='SOC Validation')}"></head>
 <body>
-<nav th:replace="~{layout/fragments :: navbar}"></nav>
-<main class="container-fluid py-4">
+<div th:replace="~{layout/fragments :: sidebar}"></div>
+<div class="app-shell">
+<div th:replace="~{layout/fragments :: topbar}"></div>
+<main class="app-main">
     <h1 class="h3 mb-4">SOC Validation</h1>
     <p class="text-secondary small">
         Extends <a th:href="@{/siem/coverage}">Detection Coverage</a> with a scenario-centric view (all
@@ -76,6 +78,7 @@
         </div>
     </div>
 </main>
+</div>
 <script type="application/json" id="soc-validation-chart-data" th:utext="${#objects.nullSafe(chartSeriesJson, '{}')}"></script>
 <div th:replace="~{layout/fragments :: scripts}"></div>
 </body>

@@ -2,8 +2,10 @@
 <html lang="en" xmlns:th="http://www.thymeleaf.org">
 <head th:replace="~{layout/fragments :: head(title='Incident detail')}"></head>
 <body>
-<nav th:replace="~{layout/fragments :: navbar}"></nav>
-<main class="container-fluid py-4">
+<div th:replace="~{layout/fragments :: sidebar}"></div>
+<div class="app-shell">
+<div th:replace="~{layout/fragments :: topbar}"></div>
+<main class="app-main">
     <p><a th:href="@{/incidents}">&larr; Back to incidents</a></p>
     <h1 class="h3 mb-1" th:text="${incident.title}">Incident</h1>
     <p>
@@ -64,6 +66,7 @@
         </div>
     </div>
 </main>
+</div>
 <div th:replace="~{layout/fragments :: scripts}"></div>
 <script th:src="@{/js/incidents.js}"></script>
 </body>

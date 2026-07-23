@@ -2,8 +2,10 @@
 <html lang="en" xmlns:th="http://www.thymeleaf.org">
 <head th:replace="~{layout/fragments :: head(title='Audit timeline')}"></head>
 <body>
-<nav th:replace="~{layout/fragments :: navbar}"></nav>
-<main class="container-fluid py-4">
+<div th:replace="~{layout/fragments :: sidebar}"></div>
+<div class="app-shell">
+<div th:replace="~{layout/fragments :: topbar}"></div>
+<main class="app-main">
     <p><a th:href="@{/audit}">&larr; Back to audit</a></p>
     <h1 class="h4 mb-3">Timeline for <code th:text="${correlationId}">correlation-id</code></h1>
 
@@ -18,6 +20,7 @@
         </li>
     </ul>
 </main>
+</div>
 <div th:replace="~{layout/fragments :: scripts}"></div>
 </body>
 </html>

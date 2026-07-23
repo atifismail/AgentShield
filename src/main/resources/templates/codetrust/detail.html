@@ -2,8 +2,10 @@
 <html lang="en" xmlns:th="http://www.thymeleaf.org">
 <head th:replace="~{layout/fragments :: head(title='Code Assessment')}"></head>
 <body>
-<nav th:replace="~{layout/fragments :: navbar}"></nav>
-<main class="container-fluid py-4">
+<div th:replace="~{layout/fragments :: sidebar}"></div>
+<div class="app-shell">
+<div th:replace="~{layout/fragments :: topbar}"></div>
+<main class="app-main">
     <h1 class="h3 mb-4" th:text="'Code Assessment #' + ${assessment.id}">Code Assessment</h1>
     <div class="card mb-3">
         <div class="card-body">
@@ -34,6 +36,7 @@
     <p class="text-secondary">Use <code>GET /api/codetrust/assessments/{id}</code> for findings and receipt detail
         (findings/receipt data is intentionally not duplicated in this server-rendered page).</p>
 </main>
+</div>
 <div th:replace="~{layout/fragments :: scripts}"></div>
 </body>
 </html>

@@ -2,8 +2,10 @@
 <html lang="en" xmlns:th="http://www.thymeleaf.org">
 <head th:replace="~{layout/fragments :: head(title='Detection Coverage')}"></head>
 <body>
-<nav th:replace="~{layout/fragments :: navbar}"></nav>
-<main class="container-fluid py-4">
+<div th:replace="~{layout/fragments :: sidebar}"></div>
+<div class="app-shell">
+<div th:replace="~{layout/fragments :: topbar}"></div>
+<main class="app-main">
     <h1 class="h3 mb-4">Detection Coverage</h1>
     <div class="row g-3">
         <div class="col-md-4">
@@ -72,6 +74,7 @@
         <code>agentshield_detection_rule_fired_total</code> metric, not this table's validation column.
     </p>
 </main>
+</div>
 <script type="application/json" id="siem-coverage-chart-data" th:utext="${#objects.nullSafe(chartSeriesJson, '{}')}"></script>
 <div th:replace="~{layout/fragments :: scripts}"></div>
 </body>

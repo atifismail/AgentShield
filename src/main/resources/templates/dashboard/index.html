@@ -2,71 +2,102 @@
 <html lang="en" xmlns:th="http://www.thymeleaf.org">
 <head th:replace="~{layout/fragments :: head(title='Dashboard')}"></head>
 <body>
-<nav th:replace="~{layout/fragments :: navbar}"></nav>
-<main class="container-fluid py-4">
-    <h1 class="h3 mb-4">Dashboard</h1>
+<div th:replace="~{layout/fragments :: sidebar}"></div>
+<div class="app-shell">
+<div th:replace="~{layout/fragments :: topbar}"></div>
+<main class="app-main">
+    <div class="page-header">
+        <div>
+            <h1>Dashboard</h1>
+            <p class="page-subtitle">Live gateway activity and posture over the last 24 hours.</p>
+        </div>
+    </div>
     <div class="row g-3">
-        <div class="col-md-4 col-lg-2">
-            <div class="card bg-body-tertiary h-100">
-                <div class="card-body">
-                    <div class="text-secondary small">Requests (24h)</div>
-                    <div class="fs-3 fw-semibold" th:text="${stats?.requestCount ?: 0}">0</div>
+        <div class="col-6 col-md-4 col-xl-3">
+            <div class="card h-100">
+                <div class="card-body stat-tile">
+                    <span class="stat-tile-icon stat-tile-icon-accent" th:replace="~{layout/icons :: icon(name='requests')}"></span>
+                    <div>
+                        <div class="stat-tile-label">Requests (24h)</div>
+                        <div class="stat-tile-value" th:text="${stats?.requestCount ?: 0}">0</div>
+                    </div>
                 </div>
             </div>
         </div>
-        <div class="col-md-4 col-lg-2">
-            <div class="card bg-body-tertiary h-100">
-                <div class="card-body">
-                    <div class="text-secondary small">Allowed (24h)</div>
-                    <div class="fs-3 fw-semibold text-success" th:text="${stats?.allowCount ?: 0}">0</div>
+        <div class="col-6 col-md-4 col-xl-3">
+            <div class="card h-100">
+                <div class="card-body stat-tile">
+                    <span class="stat-tile-icon stat-tile-icon-success" th:replace="~{layout/icons :: icon(name='approvals')}"></span>
+                    <div>
+                        <div class="stat-tile-label">Allowed (24h)</div>
+                        <div class="stat-tile-value" th:text="${stats?.allowCount ?: 0}">0</div>
+                    </div>
                 </div>
             </div>
         </div>
-        <div class="col-md-4 col-lg-2">
-            <div class="card bg-body-tertiary h-100">
-                <div class="card-body">
-                    <div class="text-secondary small">Denied (24h)</div>
-                    <div class="fs-3 fw-semibold text-danger" th:text="${stats?.denyCount ?: 0}">0</div>
+        <div class="col-6 col-md-4 col-xl-3">
+            <div class="card h-100">
+                <div class="card-body stat-tile">
+                    <span class="stat-tile-icon stat-tile-icon-danger" th:replace="~{layout/icons :: icon(name='blocked')}"></span>
+                    <div>
+                        <div class="stat-tile-label">Denied (24h)</div>
+                        <div class="stat-tile-value" th:text="${stats?.denyCount ?: 0}">0</div>
+                    </div>
                 </div>
             </div>
         </div>
-        <div class="col-md-4 col-lg-2">
-            <div class="card bg-body-tertiary h-100">
-                <div class="card-body">
-                    <div class="text-secondary small">Pending Approvals</div>
-                    <div class="fs-3 fw-semibold text-warning" th:text="${stats?.pendingApprovalCount ?: 0}">0</div>
+        <div class="col-6 col-md-4 col-xl-3">
+            <div class="card h-100">
+                <div class="card-body stat-tile">
+                    <span class="stat-tile-icon stat-tile-icon-warning" th:replace="~{layout/icons :: icon(name='approvals')}"></span>
+                    <div>
+                        <div class="stat-tile-label">Pending Approvals</div>
+                        <div class="stat-tile-value" th:text="${stats?.pendingApprovalCount ?: 0}">0</div>
+                    </div>
                 </div>
             </div>
         </div>
-        <div class="col-md-4 col-lg-2">
-            <div class="card bg-body-tertiary h-100">
-                <div class="card-body">
-                    <div class="text-secondary small">High-Risk Agents</div>
-                    <div class="fs-3 fw-semibold" th:text="${stats?.highRiskAgentCount ?: 0}">0</div>
+        <div class="col-6 col-md-4 col-xl-3">
+            <div class="card h-100">
+                <div class="card-body stat-tile">
+                    <span class="stat-tile-icon stat-tile-icon-danger" th:replace="~{layout/icons :: icon(name='agents')}"></span>
+                    <div>
+                        <div class="stat-tile-label">High-Risk Agents</div>
+                        <div class="stat-tile-value" th:text="${stats?.highRiskAgentCount ?: 0}">0</div>
+                    </div>
                 </div>
             </div>
         </div>
-        <div class="col-md-4 col-lg-2">
-            <div class="card bg-body-tertiary h-100">
-                <div class="card-body">
-                    <div class="text-secondary small">Tool Drift</div>
-                    <div class="fs-3 fw-semibold" th:text="${stats?.toolDriftCount ?: 0}">0</div>
+        <div class="col-6 col-md-4 col-xl-3">
+            <div class="card h-100">
+                <div class="card-body stat-tile">
+                    <span class="stat-tile-icon stat-tile-icon-warning" th:replace="~{layout/icons :: icon(name='tools')}"></span>
+                    <div>
+                        <div class="stat-tile-label">Tool Drift</div>
+                        <div class="stat-tile-value" th:text="${stats?.toolDriftCount ?: 0}">0</div>
+                    </div>
                 </div>
             </div>
         </div>
-        <div class="col-md-4 col-lg-2">
-            <div class="card bg-body-tertiary h-100">
-                <div class="card-body">
-                    <div class="text-secondary small">Open Incidents</div>
-                    <div class="fs-3 fw-semibold" th:text="${stats?.openIncidentCount ?: 0}">0</div>
+        <div class="col-6 col-md-4 col-xl-3">
+            <div class="card h-100">
+                <div class="card-body stat-tile">
+                    <span class="stat-tile-icon stat-tile-icon-warning" th:replace="~{layout/icons :: icon(name='incidents')}"></span>
+                    <div>
+                        <div class="stat-tile-label">Open Incidents</div>
+                        <div class="stat-tile-value" th:text="${stats?.openIncidentCount ?: 0}">0</div>
+                    </div>
                 </div>
             </div>
         </div>
-        <div class="col-md-4 col-lg-2">
-            <div class="card bg-body-tertiary h-100">
-                <div class="card-body">
-                    <div class="text-secondary small">Critical Incidents</div>
-                    <div class="fs-3 fw-semibold text-danger" th:text="${stats?.criticalIncidentCount ?: 0}">0</div>
+        <div class="col-6 col-md-4 col-xl-3">
+            <div class="card h-100">
+                <div class="card-body stat-tile">
+                    <span class="stat-tile-icon stat-tile-icon-danger" th:replace="~{layout/icons :: icon(name='incidents')}"></span>
+                    <div>
+                        <div class="stat-tile-label">Critical Incidents</div>
+                        <div class="stat-tile-value" th:text="${stats?.criticalIncidentCount ?: 0}">0</div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -74,7 +105,7 @@
 
     <div class="row g-3 mt-1">
         <div class="col-lg-8">
-            <div class="card">
+            <div class="card h-100">
                 <div class="card-header">Request volume &amp; decisions</div>
                 <div class="card-body">
                     <canvas id="requestVolumeChart" height="90"></canvas>
@@ -82,19 +113,23 @@
             </div>
         </div>
         <div class="col-lg-4">
-            <div class="card">
+            <div class="card h-100">
                 <div class="card-header">Recent incidents</div>
-                <ul class="list-group list-group-flush" id="recentIncidentsList">
-                    <li class="list-group-item text-secondary" th:if="${#lists.isEmpty(recentIncidents)}">No incidents recorded.</li>
-                    <li class="list-group-item" th:each="incident : ${recentIncidents}">
+                <div class="empty-state" th:if="${#lists.isEmpty(recentIncidents)}">
+                    <span th:replace="~{layout/icons :: icon(name='inbox')}"></span>
+                    <p>No incidents recorded.</p>
+                </div>
+                <ul class="list-group list-group-flush" id="recentIncidentsList" th:unless="${#lists.isEmpty(recentIncidents)}">
+                    <li class="list-group-item d-flex justify-content-between align-items-center" th:each="incident : ${recentIncidents}">
                         <a th:href="@{'/incidents/' + ${incident.id}}" th:text="${incident.title}">Incident</a>
-                        <span class="badge float-end" th:classappend="${incident.severity == 'CRITICAL'} ? 'text-bg-danger' : (${incident.severity == 'HIGH'} ? 'text-bg-warning' : 'text-bg-secondary')" th:text="${incident.severity}">LOW</span>
+                        <span class="badge" th:classappend="${incident.severity == 'CRITICAL'} ? 'text-bg-danger' : (${incident.severity == 'HIGH'} ? 'text-bg-warning' : 'text-bg-secondary')" th:text="${incident.severity}">LOW</span>
                     </li>
                 </ul>
             </div>
         </div>
     </div>
 </main>
+</div>
 <!-- Inert JSON data island, not a script — the strict CSP (script-src 'self', no unsafe-inline)
      would silently block an executed inline <script> block, so app.js reads this instead. -->
 <script type="application/json" id="dashboard-chart-data" th:utext="${#objects.nullSafe(chartSeriesJson, '{}')}"></script>

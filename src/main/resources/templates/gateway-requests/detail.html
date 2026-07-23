@@ -2,8 +2,10 @@
 <html lang="en" xmlns:th="http://www.thymeleaf.org">
 <head th:replace="~{layout/fragments :: head(title='Gateway request detail')}"></head>
 <body>
-<nav th:replace="~{layout/fragments :: navbar}"></nav>
-<main class="container-fluid py-4">
+<div th:replace="~{layout/fragments :: sidebar}"></div>
+<div class="app-shell">
+<div th:replace="~{layout/fragments :: topbar}"></div>
+<main class="app-main">
     <p><a th:href="@{/gateway-requests}">&larr; Back to gateway requests</a></p>
     <h1 class="h3 mb-1">
         <span th:text="${request.actionName}">deleteRecords</span> on
@@ -82,6 +84,7 @@
         </div>
     </div>
 </main>
+</div>
 <div th:replace="~{layout/fragments :: scripts}"></div>
 <script th:src="@{/js/gateway-requests.js}"></script>
 </body>

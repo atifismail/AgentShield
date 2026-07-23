@@ -1,0 +1,113 @@
+/*
+ * Design tokens. Built on top of Bootstrap 5.3's native `data-bs-theme` dark mode rather than a
+ * parallel variable system: Bootstrap components (cards, tables, forms, dropdowns) already remap
+ * their own --bs-* variables when data-bs-theme="dark" is set on <html>, so these custom
+ * properties only cover the app's own chrome (sidebar/topbar/stat tiles) and the handful of
+ * Bootstrap-adjacent values (radius, shadow, accent) this design wants to look different.
+ */
+
+:root {
+    color-scheme: light;
+
+    --as-radius-sm: .5rem;
+    --as-radius-md: .75rem;
+    --as-radius-lg: 1rem;
+    --as-shadow-sm: 0 1px 2px rgba(15, 23, 42, .06);
+    --as-shadow-md: 0 8px 24px -8px rgba(15, 23, 42, .16), 0 2px 6px -2px rgba(15, 23, 42, .08);
+    --as-transition: 160ms ease;
+
+    --as-accent: #4f46e5;
+    --as-accent-hover: #4338ca;
+    --as-accent-soft: #eef2ff;
+    --as-accent-contrast: #ffffff;
+
+    --as-sidebar-width: 16rem;
+    --as-sidebar-width-collapsed: 4.75rem;
+    --as-topbar-height: 3.75rem;
+
+    --as-page-bg: #f3f4f9;
+    --as-surface: #ffffff;
+    --as-surface-hover: #f8f9fc;
+    --as-border: rgba(15, 23, 42, .09);
+    --as-text-muted: #667085;
+
+    --as-sidebar-bg: #14121f;
+    --as-sidebar-text: rgba(255, 255, 255, .68);
+    --as-sidebar-text-active: #ffffff;
+    --as-sidebar-active-bg: rgba(255, 255, 255, .09);
+    --as-sidebar-border: rgba(255, 255, 255, .08);
+    --as-sidebar-group-title: rgba(255, 255, 255, .38);
+
+    --as-success: #198754;
+    --as-success-soft: #e9f7ef;
+    --as-warning: #b45309;
+    --as-warning-soft: #fef3e2;
+    --as-danger: #dc3545;
+    --as-danger-soft: #fdecec;
+    --as-info: #0d6efd;
+    --as-info-soft: #e8f1ff;
+}
+
+[data-bs-theme="dark"] {
+    color-scheme: dark;
+
+    --as-shadow-sm: 0 1px 2px rgba(0, 0, 0, .4);
+    --as-shadow-md: 0 8px 24px -8px rgba(0, 0, 0, .55), 0 2px 6px -2px rgba(0, 0, 0, .35);
+
+    --as-accent: #818cf8;
+    --as-accent-hover: #a5b4fc;
+    --as-accent-soft: rgba(129, 140, 248, .16);
+    --as-accent-contrast: #0b0e17;
+
+    --as-page-bg: #0b0e17;
+    --as-surface: #131725;
+    --as-surface-hover: #1a1f30;
+    --as-border: rgba(255, 255, 255, .09);
+    --as-text-muted: #93a0b4;
+
+    --as-sidebar-bg: #0a0b12;
+    --as-sidebar-border: rgba(255, 255, 255, .06);
+
+    --as-success: #3ddc84;
+    --as-success-soft: rgba(61, 220, 132, .14);
+    --as-warning: #fbbf24;
+    --as-warning-soft: rgba(251, 191, 36, .14);
+    --as-danger: #f87171;
+    --as-danger-soft: rgba(248, 113, 113, .14);
+    --as-info: #60a5fa;
+    --as-info-soft: rgba(96, 165, 250, .14);
+}
+
+* {
+    scrollbar-width: thin;
+    scrollbar-color: var(--as-border) transparent;
+}
+
+::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+}
+
+::-webkit-scrollbar-thumb {
+    background: var(--as-border);
+    border-radius: 999px;
+}
+
+html, body {
+    height: 100%;
+}
+
+body {
+    background-color: var(--as-page-bg);
+    transition: background-color var(--as-transition), color var(--as-transition);
+    -webkit-font-smoothing: antialiased;
+}
+
+a {
+    text-decoration: none;
+}
+
+:focus-visible {
+    outline: 2px solid var(--as-accent);
+    outline-offset: 2px;
+}

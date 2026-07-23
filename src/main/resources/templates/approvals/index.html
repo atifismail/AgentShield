@@ -2,8 +2,10 @@
 <html lang="en" xmlns:th="http://www.thymeleaf.org">
 <head th:replace="~{layout/fragments :: head(title='Approvals')}"></head>
 <body>
-<nav th:replace="~{layout/fragments :: navbar}"></nav>
-<main class="container-fluid py-4">
+<div th:replace="~{layout/fragments :: sidebar}"></div>
+<div class="app-shell">
+<div th:replace="~{layout/fragments :: topbar}"></div>
+<main class="app-main">
     <div class="d-flex justify-content-between align-items-center mb-3">
         <h1 class="h3 mb-0">Approvals</h1>
         <div class="btn-group">
@@ -51,6 +53,7 @@
         </div>
     </div>
 </main>
+</div>
 <div th:replace="~{layout/fragments :: scripts}"></div>
 <script th:src="@{/js/approvals.js}"></script>
 </body>

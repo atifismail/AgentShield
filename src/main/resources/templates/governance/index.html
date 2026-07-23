@@ -2,8 +2,10 @@
 <html lang="en" xmlns:th="http://www.thymeleaf.org">
 <head th:replace="~{layout/fragments :: head(title='Governance Evidence Export')}"></head>
 <body>
-<nav th:replace="~{layout/fragments :: navbar}"></nav>
-<main class="container-fluid py-4">
+<div th:replace="~{layout/fragments :: sidebar}"></div>
+<div class="app-shell">
+<div th:replace="~{layout/fragments :: topbar}"></div>
+<main class="app-main">
     <h1 class="h3 mb-1">Governance Evidence Export</h1>
     <p class="text-secondary">
         Export a NIST AI RMF-mapped evidence report (registered agents, approved tools, denied
@@ -13,7 +15,7 @@
 
     <div id="alertHost"></div>
 
-    <div class="card" style="max-width: 32rem;">
+    <div class="card max-w-form">
         <div class="card-body">
             <div class="mb-3">
                 <label class="form-label" for="fromInput">From</label>
@@ -30,6 +32,7 @@
         </div>
     </div>
 </main>
+</div>
 <div th:replace="~{layout/fragments :: scripts}"></div>
 <script th:src="@{/js/governance.js}"></script>
 </body>

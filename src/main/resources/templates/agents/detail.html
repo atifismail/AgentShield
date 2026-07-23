@@ -2,8 +2,10 @@
 <html lang="en" xmlns:th="http://www.thymeleaf.org">
 <head th:replace="~{layout/fragments :: head(title='Agent detail')}"></head>
 <body>
-<nav th:replace="~{layout/fragments :: navbar}"></nav>
-<main class="container-fluid py-4">
+<div th:replace="~{layout/fragments :: sidebar}"></div>
+<div class="app-shell">
+<div th:replace="~{layout/fragments :: topbar}"></div>
+<main class="app-main">
     <p><a th:href="@{/agents}">&larr; Back to agents</a></p>
     <h1 class="h3 mb-1" th:text="${agent.name}">agent-01</h1>
     <p><span class="badge" th:classappend="'status-badge-' + ${#strings.toLowerCase(agent.status)}" th:text="${agent.status}">ENABLED</span></p>
@@ -65,6 +67,7 @@
         </div>
     </div>
 </main>
+</div>
 <div th:replace="~{layout/fragments :: scripts}"></div>
 </body>
 </html>

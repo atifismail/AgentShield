@@ -47,7 +47,91 @@ $(function () {
     initCodeTrustChart();
     initSiemCoverageChart();
     initSocValidationChart();
+    initAppShell();
 });
+
+/**
+ * App-shell chrome: mobile off-canvas sidebar, desktop icon-rail collapse, theme toggle, and
+ * active-nav-link highlighting. Done client-side against window.location.pathname rather than a
+ * server-side model attribute so no controller needs to know about navigation state.
+ */
+function initAppShell() {
+    var body = document.body;
+    var sidebarToggle = document.getElementById('sidebarToggle');
+    var sidebarClose = document.getElementById('sidebarClose');
+    var sidebarBackdrop = document.getElementById('sidebarBackdrop');
+    var collapseToggle = document.getElementById('sidebarCollapseToggle');
+    var themeToggle = document.getElementById('themeToggle');
+
+    function openSidebar() {
+        body.classList.add('sidebar-open');
+        if (sidebarToggle) {
+            sidebarToggle.setAttribute('aria-expanded', 'true');
+        }
+    }
+
+    function closeSidebar() {
+        body.classList.remove('sidebar-open');
+        if (sidebarToggle) {
+            sidebarToggle.setAttribute('aria-expanded', 'false');
+        }
+    }
+
+    if (sidebarToggle) {
+        sidebarToggle.addEventListener('click', function () {
+            if (body.classList.contains('sidebar-open')) {
+                closeSidebar();
+            } else {
+                openSidebar();
+            }
+        });
+    }
+    if (sidebarClose) {
+        sidebarClose.addEventListener('click', closeSidebar);
+    }
+    if (sidebarBackdrop) {
+        sidebarBackdrop.addEventListener('click', closeSidebar);
+    }
+
+    if (collapseToggle) {
+        try {
+            if (localStorage.getItem('agentshield-sidebar-collapsed') === '1') {
+                body.classList.add('sidebar-collapsed');
+            }
+        } catch (e) { /* localStorage unavailable */ }
+        collapseToggle.addEventListener('click', function () {
+            var collapsed = body.classList.toggle('sidebar-collapsed');
+            try {
+                localStorage.setItem('agentshield-sidebar-collapsed', collapsed ? '1' : '0');
+            } catch (e) { /* localStorage unavailable */ }
+        });
+    }
+
+    if (themeToggle) {
+        themeToggle.addEventListener('click', function () {
+            var root = document.documentElement;
+            var next = root.getAttribute('data-bs-theme') === 'dark' ? 'light' : 'dark';
+            root.setAttribute('data-bs-theme', next);
+            try {
+                localStorage.setItem('agentshield-theme', next);
+            } catch (e) { /* localStorage unavailable */ }
+        });
+    }
+
+    var path = window.location.pathname;
+    $('.sidebar-nav .nav-link').each(function () {
+        var href = $(this).attr('href');
+        if (href && href !== '/' && (path === href || path.indexOf(href + '/') === 0)) {
+            $(this).addClass('active');
+        }
+    });
+
+    var avatar = document.getElementById('currentUserAvatar');
+    if (avatar) {
+        var name = currentUser();
+        avatar.textContent = name ? name.charAt(0).toUpperCase() : 'U';
+    }
+}
 
 // Reads the inert JSON data island (see dashboard/index.html) rather than an inline <script>
 // block, which the strict CSP (script-src 'self', no unsafe-inline) would silently block.

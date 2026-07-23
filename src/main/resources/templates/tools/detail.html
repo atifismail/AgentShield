@@ -2,8 +2,10 @@
 <html lang="en" xmlns:th="http://www.thymeleaf.org">
 <head th:replace="~{layout/fragments :: head(title='Tool detail')}"></head>
 <body>
-<nav th:replace="~{layout/fragments :: navbar}"></nav>
-<main class="container-fluid py-4">
+<div th:replace="~{layout/fragments :: sidebar}"></div>
+<div class="app-shell">
+<div th:replace="~{layout/fragments :: topbar}"></div>
+<main class="app-main">
     <p><a th:href="@{/tools}">&larr; Back to tools</a></p>
     <div id="alertHost"></div>
     <div class="d-flex justify-content-between align-items-start mb-3">
@@ -12,9 +14,9 @@
             <span class="badge" th:classappend="'status-badge-' + ${#strings.toLowerCase(tool.approvalStatus)}"
                   th:text="${tool.approvalStatus}">APPROVED</span>
             <span class="badge status-badge-drifted" th:if="${tool.hasDrift()}">DRIFTED</span>
-            <span class="badge" th:if="${provenance != null and provenance.verificationMode.name() == 'SIGNATURE_VERIFIED'}" style="background-color:#198754;">SIGNATURE VERIFIED</span>
-            <span class="badge" th:if="${provenance != null and provenance.verificationMode.name() == 'SIGNATURE_FAILED'}" style="background-color:#dc3545;">SIGNATURE FAILED</span>
-            <span class="badge" th:if="${provenance != null and provenance.verificationMode.name() == 'REVOKED'}" style="background-color:#dc3545;">PROVENANCE REVOKED</span>
+            <span class="badge text-bg-success" th:if="${provenance != null and provenance.verificationMode.name() == 'SIGNATURE_VERIFIED'}">SIGNATURE VERIFIED</span>
+            <span class="badge text-bg-danger" th:if="${provenance != null and provenance.verificationMode.name() == 'SIGNATURE_FAILED'}">SIGNATURE FAILED</span>
+            <span class="badge text-bg-danger" th:if="${provenance != null and provenance.verificationMode.name() == 'REVOKED'}">PROVENANCE REVOKED</span>
             <span class="badge text-bg-secondary" th:if="${provenance == null or provenance.verificationMode.name() == 'UNVERIFIED' or provenance.verificationMode.name() == 'CHECKSUM_PINNED'}">UNSIGNED</span>
         </div>
     </div>
@@ -104,6 +106,7 @@
         </div>
     </div>
 </main>
+</div>
 <div th:replace="~{layout/fragments :: scripts}"></div>
 <script th:src="@{/js/tools.js}"></script>
 </body>

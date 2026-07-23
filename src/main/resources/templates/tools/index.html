@@ -2,8 +2,10 @@
 <html lang="en" xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
 <head th:replace="~{layout/fragments :: head(title='Tools')}"></head>
 <body>
-<nav th:replace="~{layout/fragments :: navbar}"></nav>
-<main class="container-fluid py-4">
+<div th:replace="~{layout/fragments :: sidebar}"></div>
+<div class="app-shell">
+<div th:replace="~{layout/fragments :: topbar}"></div>
+<main class="app-main">
     <div class="d-flex justify-content-between align-items-center mb-3">
         <h1 class="h3 mb-0">Tools</h1>
         <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#registerToolModal">
@@ -55,6 +57,7 @@
         </div>
     </div>
 </main>
+</div>
 
 <div class="modal fade" id="registerToolModal" tabindex="-1">
     <div class="modal-dialog">

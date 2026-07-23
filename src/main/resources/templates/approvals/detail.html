@@ -2,8 +2,10 @@
 <html lang="en" xmlns:th="http://www.thymeleaf.org">
 <head th:replace="~{layout/fragments :: head(title='Approval detail')}"></head>
 <body>
-<nav th:replace="~{layout/fragments :: navbar}"></nav>
-<main class="container-fluid py-4" th:attr="data-approval-id=${approval.id}">
+<div th:replace="~{layout/fragments :: sidebar}"></div>
+<div class="app-shell">
+<div th:replace="~{layout/fragments :: topbar}"></div>
+<main class="app-main" th:attr="data-approval-id=${approval.id}">
     <p><a th:href="@{/approvals}">&larr; Back to approvals</a></p>
     <h1 class="h3 mb-1">
         <span th:text="${request.actionName}">deleteRecords</span> on
@@ -113,6 +115,7 @@
 
     <p class="mt-3"><a th:href="@{'/gateway-requests/' + ${request.id}}">View full gateway request detail &rarr;</a></p>
 </main>
+</div>
 <div th:replace="~{layout/fragments :: scripts}"></div>
 <script th:src="@{/js/approvals.js}"></script>
 </body>

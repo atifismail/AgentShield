@@ -1,10 +1,13 @@
 <!DOCTYPE html>
 <html lang="en" xmlns:th="http://www.thymeleaf.org">
 <head th:replace="~{layout/fragments :: head(title='Sign in')}"></head>
-<body class="d-flex align-items-center justify-content-center vh-100 bg-dark">
-<main class="card shadow-sm" style="width: 22rem;">
-    <div class="card-body">
-        <h1 class="h4 mb-3 text-center">AgentShield</h1>
+<body class="login-body d-flex align-items-center justify-content-center vh-100">
+<main class="card shadow-sm login-card">
+    <div class="card-body p-4">
+        <div class="d-flex align-items-center gap-2 justify-content-center mb-3">
+            <span class="brand-mark">AS</span>
+            <h1 class="h4 mb-0">AgentShield</h1>
+        </div>
         <p class="text-secondary text-center small mb-4">Sign in to the admin console</p>
 
         <div class="alert alert-danger py-2" th:if="${error}">Invalid username or password.</div>
