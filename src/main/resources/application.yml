@@ -69,6 +69,12 @@ agentshield:
         - 192.168.0.0/16
   approval:
     default-expiration-minutes: 60
+  grants:
+    # GROUPS_ONLY preserves today's behavior exactly for every existing installation — grants are
+    # ignored entirely until an operator explicitly opts in. See docs/policy-guide.md for the
+    # GRANTS_OR_GROUPS / GRANTS_REQUIRED migration path. Never change this default here; set it
+    # per-deployment instead.
+    transition-mode: GROUPS_ONLY
   dlp:
     # Off by default — reversible tokenization requires an explicit 32-byte base64 key
     # (agentshield.dlp.tokenization-encryption-key), same gating style as

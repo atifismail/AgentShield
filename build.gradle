@@ -53,6 +53,9 @@ dependencies {
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
     testImplementation 'org.springframework.security:spring-security-test'
     testImplementation 'org.springframework.boot:spring-boot-testcontainers'
+    // Validates evidence-export JSON/SARIF payloads against docs/schemas/*.json in tests only —
+    // never a runtime dependency (work package 5, "SARIF... schema validation must run in CI").
+    testImplementation 'com.networknt:json-schema-validator:1.5.2'
     testImplementation 'org.testcontainers:junit-jupiter'
     testImplementation 'org.testcontainers:mariadb'
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'

@@ -1,0 +1,21 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "evidence-bundle-v1.json",
+  "title": "AgentShield evidence bundle",
+  "description": "The canonical JSON export of GET /api/governance/evidence for a query period (work package 5). Every event array is derived from existing operational tables — this is not a new mutable source of truth. Deliberately excludes raw credentials, request bodies, raw tool responses, encrypted values, and arbitrary audit metadata.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "exporterVersion", "generatedAt", "queryFrom", "queryTo", "redactionPolicyVersion", "toolCallEvents", "policyDecisionEvents", "approvalEvents", "evaluationRunSummaries"],
+  "properties": {
+    "schemaVersion": { "const": "evidence-bundle-v1" },
+    "exporterVersion": { "type": "string" },
+    "generatedAt": { "type": "string", "format": "date-time" },
+    "queryFrom": { "type": "string", "format": "date-time" },
+    "queryTo": { "type": "string", "format": "date-time" },
+    "redactionPolicyVersion": { "type": "string" },
+    "toolCallEvents": { "type": "array", "items": { "$ref": "tool-call-event-v1.json" } },
+    "policyDecisionEvents": { "type": "array", "items": { "$ref": "policy-decision-event-v1.json" } },
+    "approvalEvents": { "type": "array", "items": { "$ref": "approval-event-v1.json" } },
+    "evaluationRunSummaries": { "type": "array", "items": { "$ref": "evaluation-run-v1.json" } }
+  }
+}

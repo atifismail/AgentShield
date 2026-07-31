@@ -180,7 +180,7 @@ public class AttackSimulatorService {
         // single time, independent of call count or test execution order.
         toolService.refreshFingerprint(tool.getId(),
                 "{\"actions\":[\"commit\",\"push\",\"createBranch\",\"forcePush\"],\"rev\":" + System.nanoTime() + "}",
-                "Mock Git tool (schema changed)");
+                "Mock Git tool (schema changed)", null, null, null);
         InvokeResponse response = invoke(CODING_AGENT_TOKEN, "mock-git", "commit", ActionCategory.WRITE, "DEV",
                 Map.of("message", "demo commit"));
         // Restore approved state so later scenarios/tests that depend on mock-git being APPROVED
@@ -210,7 +210,7 @@ public class AttackSimulatorService {
             return new ScenarioResult("scenario-3", "Secret-like response is blocked (after approval, on execution)",
                     false, "deny-secret-external-transfer", "expected APPROVAL_REQUIRED, got " + first.decision());
         }
-        approvalService.approve(first.approvalRequestId(), TRIGGERED_BY);
+        approvalService.approve(first.approvalRequestId(), TRIGGERED_BY, null);
         String firedRule = lastFiredRuleIdFor(CODING_AGENT_TOKEN).orElse(null);
         boolean passed = "deny-secret-external-transfer".equals(firedRule);
         return new ScenarioResult("scenario-3", "Secret-like response is blocked (after approval, on execution)",

@@ -117,7 +117,7 @@ class ApprovalConcurrencyIntegrationTest extends AbstractIntegrationTest {
                     ready.countDown();
                     go.await();
                     try {
-                        approvalService.approve(approvalId, "security-analyst-" + i);
+                        approvalService.approve(approvalId, "security-analyst-" + i, null);
                         succeeded.incrementAndGet();
                     } catch (ConflictException e) {
                         conflicted.incrementAndGet();

@@ -77,6 +77,32 @@ revoked or expired credential authenticates nothing regardless of how recently i
 agent can have multiple credentials at once — useful for rotating without downtime (issue the new
 one, update the caller, then revoke the old one).
 
+### Agent tool grants — `/api/agents/{id}/grants`
+
+Additive (`explicit-entitlements-baseline.md` work package 2): an explicit, expiring alternative
+to the legacy `Agent.allowedToolGroups` string.
+
+| Method | Path | Role | Notes |
+|---|---|---|---|
+| POST | `/api/agents/{id}/grants` | ADMIN | Create a grant: `{toolId, actionCategory, targetEnvironment, resourcePathPattern, requiredTokenScope, notBefore, expiresAt, reason}` — every field but `toolId` is optional; a null field means "not restricted on that dimension" |
+| GET | `/api/agents/{id}/grants` | ADMIN / SECURITY_ANALYST | List all grants for the agent, any status |
+| POST | `/api/agents/{id}/grants/{grantId}/revoke` | ADMIN | Revoke: `{reason}` (optional) |
+
+Whether grants are consulted at all is controlled by `agentshield.grants.transition-mode`
+(default **`GROUPS_ONLY`** — grants are ignored entirely, today's exact behavior, for every
+existing installation): `GROUPS_ONLY`, `GRANTS_OR_GROUPS` (an explicit grant, once one exists for
+an agent/tool pair, replaces the group check for that pair — until then the legacy group check
+still applies), `GRANTS_REQUIRED` (grants alone decide; the legacy group string is never
+consulted). A matching grant must be `ACTIVE`, within its `notBefore`/`expiresAt` window, and
+satisfy every constraint it declares (action category, environment — case-insensitive, resource
+path pattern, required token scope — exact membership, never substring). Resource-path/token-scope
+restrictions can only ever be satisfied for a tool that has a specifically reviewed
+`ToolAuthorizationNormalizer` — release one ships none, so those two restrictions are not yet
+satisfiable for any tool; do not configure them expecting an allow. Read live from the database on
+every gateway call — no caching — so a revoke takes effect on the very next invocation. MCP
+consent (see below) is a separate, additional gate: an active grant is necessary but not
+sufficient for an MCP-backed tool.
+
 ## Tools — `/api/tools`
 
 | Method | Path | Role | Notes |
@@ -91,6 +117,22 @@ one, update the caller, then revoke the old one).
 | GET | `/api/tools/{id}/provenance` | any authenticated | Latest supply-chain provenance record for the tool |
 | POST | `/api/tools/{id}/provenance/verify` | ADMIN / SECURITY_ANALYST | Submit a signature for verification: `{bundleJson, expectedIdentity, expectedIssuer}` |
 | POST | `/api/tools/{id}/provenance/revoke` | ADMIN / SECURITY_ANALYST | Revoke: `{reason}` — immediately forces the tool to `DRIFTED`, blocking calls |
+
+### Field-level fingerprints, risk tier, and default action
+
+Additive to the release above (`explicit-entitlements-baseline.md` work package 1). `POST
+/api/tools` and `POST /api/tools/{id}/refresh` accept three new optional fields:
+`outputSchemaJson`, `riskTier` (`UNCLASSIFIED`/`LOW`/`MODERATE`/`HIGH`/`CRITICAL`, defaults to
+`UNCLASSIFIED`), and `defaultAction` (`REVIEW`/`ALLOW`/`DENY`, defaults to `REVIEW` — advisory
+metadata only in this release; it does not itself change a gateway decision). `GET
+/api/tools`/`{id}` responses add `descriptionHash`, `inputSchemaHash`, `outputSchemaHash`
+(independent, canonicalized fingerprints — `null` means not yet computed, never "confirmed
+identical"), `fingerprintFormatVersion`, and `fingerprintState` (`AVAILABLE` or
+`LEGACY_UNAVAILABLE`). These are separate from — and never replace — the existing combined
+`approvedHash`/`currentHash` fingerprint, which keeps its original algorithm and keeps governing
+`hasDrift()`/`DRIFTED` exactly as before; an output-schema-only change now also triggers
+`DRIFTED`, since the legacy combined hash never covered the output schema. A risk-tier or
+default-action-only update never triggers `DRIFTED` by itself.
 
 ### Supply-chain provenance
 
@@ -235,10 +277,32 @@ regardless of any override). Every create/enable/disable/delete is audited.
 |---|---|---|---|
 | GET | `/api/approvals?pendingOnly=true` | any authenticated | Queue |
 | GET | `/api/approvals/{id}` | any authenticated | Detail |
-| POST | `/api/approvals/{id}/approve` | ADMIN / APPROVER | Approves **and executes** the original call; response includes `executionResult` |
-| POST | `/api/approvals/{id}/reject` | ADMIN / APPROVER | Rejects; the original `GatewayRequest` stays `DENIED` |
+| POST | `/api/approvals/{id}/approve` | ADMIN / APPROVER / SECURITY_ANALYST / TOOL_OWNER / AUDITOR at the HTTP layer; enforced precisely by the resolved approval profile's `targetRole` (or ADMIN/APPROVER if none matched) at the service layer | Approves **and executes** the original call; response includes `executionResult` |
+| POST | `/api/approvals/{id}/reject` | same as approve | Rejects; the original `GatewayRequest` stays `DENIED` |
 
-Pending approvals past their `expiresAt` (default 60 minutes, `agentshield.approval.default-expiration-minutes`) are swept to `EXPIRED` every minute by a scheduled job.
+Pending approvals past their `expiresAt` (default 60 minutes, `agentshield.approval.default-expiration-minutes`, or a matched profile's own `expirationMinutes`) are swept to `EXPIRED` every minute by a scheduled job.
+
+### Approval routing profiles — `/api/approval-profiles`
+
+Additive (`explicit-entitlements-baseline.md` work package 3): routes an already-
+`APPROVAL_REQUIRED` request to the correct human role without ever changing the ALLOW/DENY/
+APPROVAL_REQUIRED decision itself.
+
+| Method | Path | Role | Notes |
+|---|---|---|---|
+| POST | `/api/approval-profiles` | ADMIN / SECURITY_ANALYST | Create: `{name, description, priority, agentId, toolId, toolGroup, actionCategory, targetEnvironment, riskTier, targetRole, expirationMinutes}` — every predicate but `name`/`priority`/`targetRole` is optional (null = not restricted on that dimension) |
+| GET | `/api/approval-profiles` | ADMIN / SECURITY_ANALYST | List all profiles, any enabled state |
+| GET | `/api/approval-profiles/{id}` | ADMIN / SECURITY_ANALYST | Detail |
+| POST | `/api/approval-profiles/{id}/enable` | ADMIN / SECURITY_ANALYST | Rejected if it would be ambiguous with another enabled profile at the same priority |
+| POST | `/api/approval-profiles/{id}/disable` | ADMIN / SECURITY_ANALYST | |
+
+Predicates are immutable once created — only `enabled` can be toggled; delete-and-recreate covers
+any other change (there is no destructive delete). Resolution picks the highest-`priority`
+**enabled** profile whose every declared predicate matches the resolved agent/tool/action/
+environment/risk-tier, evaluated once per approval at creation time — a later profile edit/
+disable never changes an already-created approval's routing. When no profile matches, the legacy
+default expiration and ADMIN/APPROVER-only approval behavior applies unchanged, visible as a null
+`approvalProfileId`/`assignedRole` on the `ApprovalResponse`.
 
 ## Audit — `/api/audit`
 
@@ -252,6 +316,29 @@ Every audit event is chained: its `event_hash` covers its own content plus the p
 hash (SHA-256), so editing or deleting a historical row is detectable. Writes serialize on this
 chain (a per-write row lock), which is a deliberate correctness-over-throughput tradeoff for a
 security audit trail.
+
+## Policy evaluations — `/api/evaluations`
+
+Additive (`explicit-entitlements-baseline.md` work package 4): simulates policy/grant/MCP-consent
+behavior against synthetic fixtures with **zero tool forwarding** — no `GatewayRequest`, no
+`ToolForwarder`, no MCP transport manager, no OAuth token acquisition. Every response is a
+simulation only; no tool was ever invoked.
+
+| Method | Path | Role | Notes |
+|---|---|---|---|
+| POST | `/api/evaluations/suites` | ADMIN | Import a suite: `{name, description, cases: [{caseKey, inputFixtureJson, expectedDecision, expectedRuleId, expectNoToolCall, tags}]}` — creates a brand-new `(name, version)` row; a same-named suite always gets `version + 1`, the previous version flips to `SUPERSEDED` but is never edited or deleted |
+| POST | `/api/evaluations/suites/built-in` | ADMIN | Creates (a new version of) the shipped default-policy suite — one case per required fixture category: safe read, unknown tool, tool drift, missing grant, expired grant, wrong resource, missing MCP consent, prod write, external transfer, DLP block, malformed context |
+| GET | `/api/evaluations/suites` | ADMIN / SECURITY_ANALYST | List all suite versions |
+| GET | `/api/evaluations/suites/{id}` | ADMIN / SECURITY_ANALYST | Suite detail with its cases (fixtures are synthetic, safe to return as-is) |
+| POST | `/api/evaluations/runs` | ADMIN / SECURITY_ANALYST | Trigger a run: `{suiteName, suiteVersion}` — `suiteVersion: null` resolves to the latest `ACTIVE` version |
+| GET | `/api/evaluations/runs` | ADMIN / SECURITY_ANALYST | List all runs |
+| GET | `/api/evaluations/runs/{id}` | ADMIN / SECURITY_ANALYST | Run detail with per-case results (`PASS`/`FAIL`/`ERROR`, actual decision/rule, redacted reason) |
+
+`inputFixtureJson` describes a fully synthetic, in-memory agent/tool/request — it is never real
+captured request data, and importing a case does not validate that it parses as a well-formed
+fixture (a deliberately malformed one is exactly how the shipped suite proves the engine fails
+closed to `ERROR` at run time, rather than at import time). A case's `expectedRuleId` may be
+`null` to only check the decision, not the specific rule.
 
 ## Incidents — `/api/incidents`
 
@@ -303,7 +390,29 @@ tools, denied actions in range, approval records in range (with approved/rejecte
 breakdown), tool drift events in range, incidents opened in range, and the policy versions
 currently in force. Sections are labeled with the NIST AI RMF function they evidence
 (govern/map/measure/manage). `from` must be strictly before `to` or the request is rejected with
-400. There's also an operator-facing form at `/governance`.
+400. There's also an operator-facing form at `/governance`. This report/markdown pair is
+unchanged and remains backward compatible — the versioned evidence bundle below is additive, not
+a replacement.
+
+### Versioned evidence bundle — `/api/governance/evidence`
+
+Additive (`explicit-entitlements-baseline.md` work package 5). Published JSON Schemas for every
+shape below live under `docs/schemas/`: `evidence-bundle-v1.json` (the envelope),
+`tool-call-event-v1.json`, `policy-decision-event-v1.json`, `approval-event-v1.json`,
+`evaluation-run-v1.json`.
+
+| Method | Path | Role | Notes |
+|---|---|---|---|
+| GET | `/api/governance/evidence?from=<ISO-8601>&to=<ISO-8601>&format=json\|sarif` | ADMIN / SECURITY_ANALYST | `format` defaults to `json` (canonical); `sarif` is a constrained compatibility projection |
+
+The JSON bundle includes `exporterVersion`, `generatedAt`, the query period, and
+`redactionPolicyVersion`, plus four event arrays — `toolCallEvents`, `policyDecisionEvents`,
+`approvalEvents`, `evaluationRunSummaries` — each derived from existing operational tables (no new
+mutable source of truth) and each explicitly excluding raw credentials, request bodies, raw tool
+responses, encrypted values, and arbitrary audit metadata. `format=sarif` maps every non-`ALLOW`
+policy decision and every evaluation run with failures/errors to one SARIF 2.1.0 result each
+(`tool.driver.name: "AgentShield"`); it is not a claim that every operational event is a
+static-analysis finding, only a compatibility view over the ones that map naturally.
 
 ## Code Trust — `/api/codetrust`
 

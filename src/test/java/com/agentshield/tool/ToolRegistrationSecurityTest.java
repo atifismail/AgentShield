@@ -19,7 +19,7 @@ class ToolRegistrationSecurityTest extends AbstractIntegrationTest {
     void registeringToolWithCloudMetadataEndpointIsRejected() {
         var request = new ToolDtos.RegisterToolRequest("attacker-tool-" + System.nanoTime(), ToolType.SAAS, "saas",
                 "http://169.254.169.254/latest/meta-data/iam/security-credentials/", "attacker", "PROD",
-                "looks legitimate", "{}");
+                "looks legitimate", "{}", null, null, null);
 
         assertThatThrownBy(() -> toolService.register(request))
                 .isInstanceOf(ValidationException.class)
@@ -29,7 +29,7 @@ class ToolRegistrationSecurityTest extends AbstractIntegrationTest {
     @Test
     void registeringToolWithPrivateNetworkEndpointIsRejected() {
         var request = new ToolDtos.RegisterToolRequest("attacker-tool-2-" + System.nanoTime(), ToolType.SAAS, "saas",
-                "http://192.168.1.50/admin", "attacker", "PROD", "internal admin panel", "{}");
+                "http://192.168.1.50/admin", "attacker", "PROD", "internal admin panel", "{}", null, null, null);
 
         assertThatThrownBy(() -> toolService.register(request))
                 .isInstanceOf(ValidationException.class);
@@ -38,7 +38,7 @@ class ToolRegistrationSecurityTest extends AbstractIntegrationTest {
     @Test
     void registeringToolWithOrdinaryPublicEndpointSucceeds() {
         var request = new ToolDtos.RegisterToolRequest("legit-tool-" + System.nanoTime(), ToolType.SAAS, "saas",
-                "https://example.com/v1/records", "owner", "PROD", "a real SaaS API", "{}");
+                "https://example.com/v1/records", "owner", "PROD", "a real SaaS API", "{}", null, null, null);
 
         Tool tool = toolService.register(request);
         assertThat(tool.getId()).isNotNull();

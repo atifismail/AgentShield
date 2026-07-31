@@ -37,11 +37,11 @@ class ToolProvenanceIntegrationTest extends AbstractIntegrationTest {
     @Test
     void registeringAToolAutomaticallyRecordsAnUnverifiedChecksum() {
         var request = new ToolDtos.RegisterToolRequest("provenance-test-" + System.nanoTime(), ToolType.SAAS, "saas",
-                "https://example.com/v1", "owner", "DEV", "a test tool", "{}");
+                "https://example.com/v1", "owner", "DEV", "a test tool", "{}", null, null, null);
 
         Tool tool = toolService.register(request);
 
-        var version = versionRepository.findByToolIdOrderByDetectedAtDesc(tool.getId()).get(0);
+        var version = versionRepository.findByToolIdOrderByDetectedAtDescIdDesc(tool.getId()).get(0);
         var provenance = provenanceRepository.findByToolVersionId(version.getId()).orElseThrow();
         assertThat(provenance.getVerificationMode()).isEqualTo(VerificationMode.UNVERIFIED);
         assertThat(provenance.getChecksum()).isEqualTo(version.getHash());
@@ -51,7 +51,7 @@ class ToolProvenanceIntegrationTest extends AbstractIntegrationTest {
     void approvalIsRejectedWhenTrustPolicyRequiresASignatureThatWasNeverSubmitted() {
         properties.setRequireSignatureFor(Set.of(ToolSourceType.CUSTOM_HTTP));
         var request = new ToolDtos.RegisterToolRequest("provenance-gate-test-" + System.nanoTime(), ToolType.SAAS,
-                "saas", "https://example.com/v1", "owner", "DEV", "a test tool", "{}");
+                "saas", "https://example.com/v1", "owner", "DEV", "a test tool", "{}", null, null, null);
         Tool tool = toolService.register(request);
 
         assertThatThrownBy(() -> toolService.approveLatestVersion(tool.getId(), "admin"))
@@ -63,7 +63,7 @@ class ToolProvenanceIntegrationTest extends AbstractIntegrationTest {
     void approvalSucceedsWhenTrustPolicyDoesNotCoverThisSourceType() {
         properties.setRequireSignatureFor(Set.of(ToolSourceType.MCP));
         var request = new ToolDtos.RegisterToolRequest("provenance-exempt-test-" + System.nanoTime(), ToolType.SAAS,
-                "saas", "https://example.com/v1", "owner", "DEV", "a test tool", "{}");
+                "saas", "https://example.com/v1", "owner", "DEV", "a test tool", "{}", null, null, null);
         Tool tool = toolService.register(request);
 
         Tool approved = toolService.approveLatestVersion(tool.getId(), "admin");

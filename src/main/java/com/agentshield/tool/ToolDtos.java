@@ -17,13 +17,25 @@ public final class ToolDtos {
             String owner,
             String environment,
             String description,
-            String schemaJson
+            String schemaJson,
+            /** Optional; most tools have no distinct output schema. */
+            String outputSchemaJson,
+            /** Optional; defaults to {@code UNCLASSIFIED} when omitted. */
+            ToolRiskTier riskTier,
+            /** Optional; defaults to {@code REVIEW} when omitted. */
+            ToolDefaultAction defaultAction
     ) {
     }
 
     public record UpdateToolFingerprintRequest(
             String description,
-            String schemaJson
+            String schemaJson,
+            /** Optional; null leaves the tool's current output schema fingerprint untouched. */
+            String outputSchemaJson,
+            /** Optional; null leaves the tool's current risk tier untouched. */
+            ToolRiskTier riskTier,
+            /** Optional; null leaves the tool's current default action untouched. */
+            ToolDefaultAction defaultAction
     ) {
     }
 
@@ -43,13 +55,23 @@ public final class ToolDtos {
             ToolSourceType sourceType,
             Instant lastSeenAt,
             Instant createdAt,
-            Instant updatedAt
+            Instant updatedAt,
+            String descriptionHash,
+            String inputSchemaHash,
+            String outputSchemaHash,
+            ToolRiskTier riskTier,
+            ToolDefaultAction defaultAction,
+            short fingerprintFormatVersion,
+            ToolFingerprintState fingerprintState
     ) {
         public static ToolResponse from(Tool tool) {
             return new ToolResponse(tool.getId(), tool.getName(), tool.getType(), tool.getToolGroup(),
                     tool.getEndpointUrl(), tool.getOwner(), tool.getEnvironment(), tool.getDescription(),
                     tool.getApprovedHash(), tool.getCurrentHash(), tool.getApprovalStatus(), tool.hasDrift(),
-                    tool.getSourceType(), tool.getLastSeenAt(), tool.getCreatedAt(), tool.getUpdatedAt());
+                    tool.getSourceType(), tool.getLastSeenAt(), tool.getCreatedAt(), tool.getUpdatedAt(),
+                    tool.getDescriptionHash(), tool.getInputSchemaHash(), tool.getOutputSchemaHash(),
+                    tool.getRiskTier(), tool.getDefaultAction(), tool.getFingerprintFormatVersion(),
+                    tool.fingerprintState());
         }
     }
 
@@ -93,12 +115,16 @@ public final class ToolDtos {
             Instant detectedAt,
             String approvedBy,
             Instant approvedAt,
-            ToolVersionStatus status
+            ToolVersionStatus status,
+            String descriptionHash,
+            String inputSchemaHash,
+            String outputSchemaHash
     ) {
         public static ToolVersionResponse from(ToolVersion version) {
             return new ToolVersionResponse(version.getId(), version.getTool().getId(), version.getDescription(),
                     version.getHash(), version.getDetectedAt(), version.getApprovedBy(), version.getApprovedAt(),
-                    version.getStatus());
+                    version.getStatus(), version.getDescriptionHash(), version.getInputSchemaHash(),
+                    version.getOutputSchemaHash());
         }
     }
 

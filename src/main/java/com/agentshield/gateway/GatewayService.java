@@ -3,6 +3,8 @@ package com.agentshield.gateway;
 import com.agentshield.agent.Agent;
 import com.agentshield.agent.AgentCredential;
 import com.agentshield.agent.AgentCredentialRepository;
+import com.agentshield.approval.ApprovalProfile;
+import com.agentshield.approval.ApprovalProfileResolutionService;
 import com.agentshield.approval.ApprovalRequest;
 import com.agentshield.approval.ApprovalRequestRepository;
 import com.agentshield.audit.AuditService;
@@ -19,6 +21,7 @@ import com.agentshield.dlp.ContentStage;
 import com.agentshield.dlp.DlpAction;
 import com.agentshield.dlp.DlpScanResult;
 import com.agentshield.dlp.DlpScanService;
+import com.agentshield.grant.ToolAuthorizationNormalizerRegistry;
 import com.agentshield.gateway.GatewayDtos.InvokeRequest;
 import com.agentshield.gateway.GatewayDtos.InvokeResponse;
 import com.agentshield.incident.IncidentService;
@@ -79,6 +82,8 @@ public class GatewayService {
     private final GatewayToolResponseRepository toolResponseRepository;
     private final RawResponseEncryptor rawResponseEncryptor;
     private final GatewayMetrics metrics;
+    private final ToolAuthorizationNormalizerRegistry authorizationNormalizerRegistry;
+    private final ApprovalProfileResolutionService approvalProfileResolutionService;
     private final int maxPayloadBytes;
     private final int defaultApprovalExpirationMinutes;
 
@@ -90,7 +95,8 @@ public class GatewayService {
             AuditService auditService, IncidentService incidentService, BehaviorBaselineService behaviorBaselineService,
             ObjectMapper objectMapper,
             GatewayToolResponseRepository toolResponseRepository, RawResponseEncryptor rawResponseEncryptor,
-            GatewayMetrics metrics,
+            GatewayMetrics metrics, ToolAuthorizationNormalizerRegistry authorizationNormalizerRegistry,
+            ApprovalProfileResolutionService approvalProfileResolutionService,
             @Value("${agentshield.gateway.max-payload-bytes:262144}") int maxPayloadBytes,
             @Value("${agentshield.approval.default-expiration-minutes:60}") int defaultApprovalExpirationMinutes) {
         this.agentCredentialRepository = agentCredentialRepository;
@@ -111,6 +117,8 @@ public class GatewayService {
         this.toolResponseRepository = toolResponseRepository;
         this.rawResponseEncryptor = rawResponseEncryptor;
         this.metrics = metrics;
+        this.authorizationNormalizerRegistry = authorizationNormalizerRegistry;
+        this.approvalProfileResolutionService = approvalProfileResolutionService;
         this.maxPayloadBytes = maxPayloadBytes;
         this.defaultApprovalExpirationMinutes = defaultApprovalExpirationMinutes;
     }
@@ -180,8 +188,9 @@ public class GatewayService {
         RiskAssessment riskAssessment;
         JsonNode forwardInput = request.input();
         try {
+            var authorizationFacts = authorizationNormalizerRegistry.normalize(tool, request.input());
             PolicyEvaluationContext ctx = new PolicyEvaluationContext(agent, tool, request.actionCategory(),
-                    request.targetEnvironment(), payloadBytes, maxPayloadBytes);
+                    request.targetEnvironment(), payloadBytes, maxPayloadBytes, authorizationFacts);
             var policyTimer = metrics.startTimer();
             policyOutcome = policyEngine.evaluateRequest(ctx);
             metrics.stopPolicyEvaluationTimer(policyTimer);
@@ -236,7 +245,18 @@ public class GatewayService {
                 approval.setGatewayRequest(gatewayRequest);
                 approval.setRequestedBy(contextValue(request, "userId"));
                 approval.setReason(policyOutcome.reason());
-                approval.setExpiresAt(Instant.now().plus(Duration.ofMinutes(defaultApprovalExpirationMinutes)));
+
+                int expirationMinutes = defaultApprovalExpirationMinutes;
+                Optional<ApprovalProfile> profile = approvalProfileResolutionService.resolve(agent, tool,
+                        request.actionCategory(), request.targetEnvironment());
+                if (profile.isPresent()) {
+                    approval.setApprovalProfileId(profile.get().getId());
+                    approval.setAssignedRole(profile.get().getTargetRole());
+                    if (profile.get().getExpirationMinutes() != null) {
+                        expirationMinutes = profile.get().getExpirationMinutes();
+                    }
+                }
+                approval.setExpiresAt(Instant.now().plus(Duration.ofMinutes(expirationMinutes)));
                 approval = approvalRequestRepository.save(approval);
                 auditService.record(correlationId, "gateway.approval_required", ActorType.SYSTEM, "policy-engine",
                         agent.getId(), tool.getId(), AuditSeverity.WARNING, policyOutcome.reason(), null);

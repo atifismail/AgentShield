@@ -74,6 +74,38 @@ Requires `curl` and `jq`. It exercises, in order:
 After running it, open the **Audit** and **Incidents** pages in the UI (default admin login —
 see `docs/operations.md`) to see the full trail each scenario left behind, correlated by request.
 
+## Explicit Entitlements walkthrough (grants, approval profiles, evaluation, evidence)
+
+Manual curl walkthrough for the release described in
+`docs/release-notes/explicit-entitlements-baseline.md` — not yet folded into
+`scripts/demo-attack-lab.sh`. Assumes `AGENTSHIELD_ADMIN_USER`/`AGENTSHIELD_ADMIN_PASSWORD`
+(default `admin`/`changeit`) and a registered/approved tool + agent (e.g. `mock-git` /
+`coding-agent-01` from the seed data above).
+
+1. **`GRANTS_REQUIRED` deny, then a narrowly scoped grant allows it.** Set
+   `agentshield.grants.transition-mode=GRANTS_REQUIRED` (or `GRANTS_OR_GROUPS` to see the legacy-
+   group fallback first), then call the gateway as `coding-agent-01` against `mock-git` — denied
+   with `deny-no-matching-grant` even though the agent's legacy `allowedToolGroups` would have
+   allowed it. Create a grant scoped to exactly that tool/action/environment
+   (`POST /api/agents/{id}/grants`), repeat the same call — now `ALLOW`. Change the call's
+   `actionCategory` or `targetEnvironment` to something the grant doesn't cover — denied again,
+   proving the grant only narrows, never broadens.
+2. **A production write routed to a specific role.** Create an approval profile
+   (`POST /api/approval-profiles`) targeting `WRITE`/`PROD` with `targetRole: TOOL_OWNER`, then
+   invoke a `WRITE` action against `PROD` — the resulting `ApprovalRequest`
+   (`GET /api/approvals/{id}`) shows `assignedRole: TOOL_OWNER` and the resolved
+   `approvalProfileId`; only a `TOOL_OWNER` or `ADMIN` can resolve it.
+3. **Drift, then an evaluation run proving no tool was ever called.** Create/run the built-in
+   evaluation suite: `POST /api/evaluations/suites/built-in`, then
+   `POST /api/evaluations/runs` `{"suiteName":"built-in-default-policy"}`. Its `tool-drift` case
+   fails closed with `deny-schema-drift` and its `malformed-context` case fails closed to an
+   `ERROR` result — fetch `GET /api/evaluations/runs/{id}` and note that no `mock-git` (or any
+   other) tool endpoint was ever reached; the run's simulation never forwards a call.
+4. **Export and validate the evidence bundle.** `GET /api/governance/evidence?from=...&to=...`
+   (covering the calls above) returns the JSON envelope; validate it against
+   `docs/schemas/evidence-bundle-v1.json` with any JSON Schema validator. Add `&format=sarif` for
+   the SARIF projection of the denials/failures above.
+
 ## Risk mapping
 
 Each attack scenario demonstrates a control against a specific, named risk category

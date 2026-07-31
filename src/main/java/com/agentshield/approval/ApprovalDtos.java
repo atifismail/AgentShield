@@ -2,6 +2,7 @@ package com.agentshield.approval;
 
 import com.agentshield.common.ApprovalStatus;
 import com.agentshield.gateway.GatewayDtos.InvokeResponse;
+import com.agentshield.security.UserRole;
 import jakarta.validation.constraints.NotBlank;
 import java.time.Instant;
 
@@ -27,7 +28,9 @@ public final class ApprovalDtos {
             Instant rejectedAt,
             Instant expiresAt,
             Instant createdAt,
-            InvokeResponse executionResult
+            InvokeResponse executionResult,
+            Long approvalProfileId,
+            UserRole assignedRole
     ) {
         public static ApprovalResponse from(ApprovalRequest approval) {
             return from(approval, null);
@@ -48,7 +51,9 @@ public final class ApprovalDtos {
                     approval.getRejectedAt(),
                     approval.getExpiresAt(),
                     approval.getCreatedAt(),
-                    executionResult);
+                    executionResult,
+                    approval.getApprovalProfileId(),
+                    approval.getAssignedRole());
         }
     }
 }

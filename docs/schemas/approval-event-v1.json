@@ -1,0 +1,21 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "approval-event-v1.json",
+  "title": "AgentShield approval event",
+  "description": "One ApprovalRequest row, including its resolved routing profile/role (work package 3) once known. requestedBy/decidedBy are operator identifiers, never bearer tokens or credentials.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "id", "gatewayRequestId", "status", "createdAt"],
+  "properties": {
+    "schemaVersion": { "const": "approval-event-v1" },
+    "id": { "type": "integer" },
+    "gatewayRequestId": { "type": "integer", "description": "Source-event id." },
+    "status": { "type": "string", "enum": ["PENDING", "APPROVED", "REJECTED", "EXPIRED"] },
+    "approvalProfileId": { "type": ["integer", "null"] },
+    "assignedRole": { "type": ["string", "null"] },
+    "requestedBy": { "type": ["string", "null"] },
+    "decidedBy": { "type": ["string", "null"] },
+    "createdAt": { "type": "string", "format": "date-time" },
+    "decidedAt": { "type": ["string", "null"], "format": "date-time" }
+  }
+}

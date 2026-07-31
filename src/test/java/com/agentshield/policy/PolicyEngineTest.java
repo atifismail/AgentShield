@@ -7,6 +7,10 @@ import com.agentshield.agent.AgentStatus;
 import com.agentshield.common.ActionCategory;
 import com.agentshield.common.PolicyDecisionType;
 import com.agentshield.dlp.DlpAction;
+import com.agentshield.grant.GrantDecision;
+import com.agentshield.grant.GrantEvaluationService;
+import com.agentshield.grant.GrantProperties;
+import com.agentshield.grant.GrantTransitionMode;
 import com.agentshield.mcp.McpConsentService;
 import com.agentshield.risk.Confidence;
 import com.agentshield.risk.DetectionMatch;
@@ -25,7 +29,10 @@ class PolicyEngineTest {
     // PolicyOverrideTest covers the override layer itself.
     private final PolicyOverrideRepository overrideRepository = Mockito.mock(PolicyOverrideRepository.class);
     private final McpConsentService mcpConsentService = Mockito.mock(McpConsentService.class);
-    private final PolicyEngine engine = new PolicyEngine(overrideRepository, mcpConsentService);
+    private final GrantEvaluationService grantEvaluationService = Mockito.mock(GrantEvaluationService.class);
+    private final GrantProperties grantProperties = new GrantProperties();
+    private final PolicyEngine engine = new PolicyEngine(overrideRepository, mcpConsentService,
+            grantEvaluationService, grantProperties);
 
     {
         Mockito.when(overrideRepository.findActiveOrderByPriority()).thenReturn(List.of());
@@ -250,5 +257,99 @@ class PolicyEngineTest {
         var outcome = engine.evaluateDlp(DlpAction.APPROVAL_REQUIRED, match.matches());
         assertThat(outcome.decision()).isEqualTo(PolicyDecisionType.APPROVAL_REQUIRED);
         assertThat(outcome.ruleId()).isEqualTo("require-approval-dlp-finding");
+    }
+
+    // --- Work package 2: grant/group access dispatch ---
+
+    @Test
+    void groupsOnlyModeNeverConsultsGrantsEvenWhenAgentIsOutsideItsGroup() {
+        grantProperties.setTransitionMode(GrantTransitionMode.GROUPS_ONLY);
+
+        var outcome = engine.evaluateRequest(ctx(
+                agent(AgentStatus.ENABLED, "filesystem"),
+                tool(ToolApprovalStatus.APPROVED, "h", "h", "database"),
+                ActionCategory.READ, "DEV", 10));
+
+        assertThat(outcome.ruleId()).isEqualTo("deny-tool-outside-allowed-group");
+        Mockito.verifyNoInteractions(grantEvaluationService);
+    }
+
+    @Test
+    void grantsRequiredModeDeniesWhenNoMatchingGrantEvenThoughTheGroupWouldHaveAllowed() {
+        grantProperties.setTransitionMode(GrantTransitionMode.GRANTS_REQUIRED);
+        Mockito.when(grantEvaluationService.evaluate(Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any(),
+                Mockito.any(), Mockito.eq(GrantTransitionMode.GRANTS_REQUIRED))).thenReturn(GrantDecision.DENIED);
+
+        var outcome = engine.evaluateRequest(ctx(
+                agent(AgentStatus.ENABLED, "database"), // in-group, but GRANTS_REQUIRED ignores this entirely
+                tool(ToolApprovalStatus.APPROVED, "h", "h", "database"),
+                ActionCategory.READ, "DEV", 10));
+
+        assertThat(outcome.decision()).isEqualTo(PolicyDecisionType.DENY);
+        assertThat(outcome.ruleId()).isEqualTo("deny-no-matching-grant");
+    }
+
+    @Test
+    void grantsRequiredModeAllowsWhenAGrantMatchesEvenThoughTheAgentIsOutsideItsGroup() {
+        grantProperties.setTransitionMode(GrantTransitionMode.GRANTS_REQUIRED);
+        Mockito.when(grantEvaluationService.evaluate(Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any(),
+                Mockito.any(), Mockito.eq(GrantTransitionMode.GRANTS_REQUIRED))).thenReturn(GrantDecision.SATISFIED);
+
+        var outcome = engine.evaluateRequest(ctx(
+                agent(AgentStatus.ENABLED, "filesystem"), // outside the tool's group — irrelevant under GRANTS_REQUIRED
+                tool(ToolApprovalStatus.APPROVED, "h", "h", "database"),
+                ActionCategory.READ, "DEV", 10));
+
+        assertThat(outcome.decision()).isEqualTo(PolicyDecisionType.ALLOW);
+    }
+
+    @Test
+    void grantsOrGroupsModeFallsBackToTheGroupCheckWhenNoGrantExistsForThisPairYet() {
+        grantProperties.setTransitionMode(GrantTransitionMode.GRANTS_OR_GROUPS);
+        Mockito.when(grantEvaluationService.evaluate(Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any(),
+                Mockito.any(), Mockito.eq(GrantTransitionMode.GRANTS_OR_GROUPS))).thenReturn(GrantDecision.NOT_APPLICABLE);
+
+        var outcome = engine.evaluateRequest(ctx(
+                agent(AgentStatus.ENABLED, "database"),
+                tool(ToolApprovalStatus.APPROVED, "h", "h", "database"),
+                ActionCategory.READ, "DEV", 10));
+
+        assertThat(outcome.decision()).isEqualTo(PolicyDecisionType.ALLOW);
+    }
+
+    @Test
+    void grantsOrGroupsModeDeniesOnAMismatchedGrantEvenThoughTheGroupWouldHaveAllowed() {
+        grantProperties.setTransitionMode(GrantTransitionMode.GRANTS_OR_GROUPS);
+        Mockito.when(grantEvaluationService.evaluate(Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any(),
+                Mockito.any(), Mockito.eq(GrantTransitionMode.GRANTS_OR_GROUPS))).thenReturn(GrantDecision.DENIED);
+
+        var outcome = engine.evaluateRequest(ctx(
+                agent(AgentStatus.ENABLED, "database"),
+                tool(ToolApprovalStatus.APPROVED, "h", "h", "database"),
+                ActionCategory.READ, "DEV", 10));
+
+        assertThat(outcome.decision()).isEqualTo(PolicyDecisionType.DENY);
+        assertThat(outcome.ruleId()).isEqualTo("deny-no-matching-grant");
+    }
+
+    @Test
+    void policyOverrideCannotTurnAGrantDenialIntoAllow() {
+        grantProperties.setTransitionMode(GrantTransitionMode.GRANTS_REQUIRED);
+        Mockito.when(grantEvaluationService.evaluate(Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any(),
+                Mockito.any(), Mockito.eq(GrantTransitionMode.GRANTS_REQUIRED))).thenReturn(GrantDecision.DENIED);
+        // An override that would ALLOW everything must never be reached — grant denial happens
+        // strictly before evaluateOverrides() in the pipeline.
+        PolicyOverride wideOpenOverride = Mockito.mock(PolicyOverride.class);
+        Mockito.when(wideOpenOverride.matches(Mockito.any())).thenReturn(true);
+        Mockito.when(wideOpenOverride.getDecision()).thenReturn(PolicyDecisionType.ALLOW);
+        Mockito.when(overrideRepository.findActiveOrderByPriority()).thenReturn(List.of(wideOpenOverride));
+
+        var outcome = engine.evaluateRequest(ctx(
+                agent(AgentStatus.ENABLED, "database"),
+                tool(ToolApprovalStatus.APPROVED, "h", "h", "database"),
+                ActionCategory.READ, "DEV", 10));
+
+        assertThat(outcome.decision()).isEqualTo(PolicyDecisionType.DENY);
+        assertThat(outcome.ruleId()).isEqualTo("deny-no-matching-grant");
     }
 }

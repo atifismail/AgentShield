@@ -129,7 +129,7 @@ class ToolProvenanceServiceTest {
         ToolProvenance existing = new ToolProvenance();
         existing.setToolVersion(version);
         Mockito.when(toolRepository.findById(tool.getId())).thenReturn(Optional.of(tool));
-        Mockito.when(versionRepository.findByToolIdOrderByDetectedAtDesc(tool.getId())).thenReturn(List.of(version));
+        Mockito.when(versionRepository.findByToolIdOrderByDetectedAtDescIdDesc(tool.getId())).thenReturn(List.of(version));
         Mockito.when(provenanceRepository.findByToolVersionId(version.getId())).thenReturn(Optional.of(existing));
         Mockito.when(signatureVerifier.verify(Mockito.any(), Mockito.eq("bundle-json"), Mockito.eq("me@example.com"),
                 Mockito.eq("https://issuer.example.com")))
@@ -151,7 +151,7 @@ class ToolProvenanceServiceTest {
         ToolProvenance existing = new ToolProvenance();
         existing.setToolVersion(version);
         Mockito.when(toolRepository.findById(tool.getId())).thenReturn(Optional.of(tool));
-        Mockito.when(versionRepository.findByToolIdOrderByDetectedAtDesc(tool.getId())).thenReturn(List.of(version));
+        Mockito.when(versionRepository.findByToolIdOrderByDetectedAtDescIdDesc(tool.getId())).thenReturn(List.of(version));
         Mockito.when(provenanceRepository.findByToolVersionId(version.getId())).thenReturn(Optional.of(existing));
         Mockito.when(signatureVerifier.verify(Mockito.any(), Mockito.anyString(), Mockito.any(), Mockito.any()))
                 .thenReturn(SignatureVerifier.VerificationResult.failure("certificate identity does not match"));

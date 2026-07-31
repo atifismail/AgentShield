@@ -15,9 +15,10 @@
 - **DLP** — operator-configured classification profiles decide allow/redact/tokenize/block/approval-required per detector match; a standalone endpoint lets an external RAG ingestion pipeline classify a chunk before indexing it.
 - **Code Trust** — submit an AI-coding-assistant scan result (`scripts/agentshield-code-scan.sh` is a thin reference CLI, not a SAST engine); a CRITICAL/HIGH finding blocks the commit until a human reviews it, and a passing assessment gets a locally Ed25519-signed, independently verifiable receipt.
 - **SIEM export & SOC Validation** — a flat, SIEM-friendly event export plus a named `DetectionRule` catalog (15 identifiers, each with an optional MITRE ATT&CK reference); an in-process attack simulator replays 12 scenarios to prove the catalog still fires, and a vendor-neutral alert-import validator checks whether a downstream SIEM's actual alerts match what's expected.
-- **Approval workflow** — high-risk actions queue for human sign-off; approving executes the action immediately, with row-level locking so a duplicate approval can't execute it twice.
+- **Approval workflow** — high-risk actions queue for human sign-off; approving executes the action immediately, with row-level locking so a duplicate approval can't execute it twice. Approval routing profiles route a request to the correct role by priority/predicate match; an explicit, expiring per-agent tool grant model is available as a data-driven alternative to the legacy allowed-tool-group string (opt-in via `agentshield.grants.transition-mode`, default unchanged).
+- **Policy evaluation/simulation** — run a versioned suite of synthetic fixtures through the real pre-call policy/grant/MCP-consent components with zero tool forwarding, to test a policy or tool change before relying on it in production.
 - **Response forensics** — every tool response gets a hashed, sanitized forensic record (raw body retained only if explicitly enabled and encrypted).
-- **Audit trail** — every request produces a searchable, correlated, tamper-evident (hash-chained) audit record.
+- **Audit trail & evidence export** — every request produces a searchable, correlated, tamper-evident (hash-chained) audit record; a versioned JSON/SARIF evidence bundle (`docs/schemas/`) exports tool-call/policy-decision/approval/evaluation-run events for a date range.
 - **Metrics & docs** — Prometheus-format metrics at `/actuator/prometheus`, interactive API docs at `/swagger-ui.html`.
 
 See `docs/architecture.md` and `docs/threat-model.md` for the full design and the specific risks each control addresses.
@@ -64,9 +65,13 @@ responses, and a standalone RAG-chunk endpoint), an AI-coding-assistant code-tru
 (block/pass policy, human review, signed receipts), approval workflow, tamper-evident audit trail,
 agent token lifecycle, tool drift detection, MCP tool discovery and consent/OAuth authorization,
 tool/skill supply-chain provenance (checksums + opt-in Sigstore signature verification), response
-forensics, production hardening, and OpenAPI docs are implemented and tested (unit, integration,
-and negative-security-path coverage) against both PostgreSQL and MariaDB. `docs/threat-model.md`
-tracks known gaps not yet covered. See [`ROADMAP.md`](ROADMAP.md) for what's next.
+forensics, production hardening, OpenAPI docs, explicit per-agent tool grants, approval routing
+profiles, a no-tool-forwarding policy evaluation engine, and a versioned evidence bundle export
+are implemented and tested (unit, integration, and negative-security-path coverage) against both
+PostgreSQL and MariaDB. `docs/threat-model.md` tracks known gaps not yet covered. See
+[`ROADMAP.md`](ROADMAP.md) for what's next. As with any release, treat "tested" as test-suite
+verified, not as an operational-deployment guarantee — see `docs/operations.md` before running in
+production.
 
 ## License
 

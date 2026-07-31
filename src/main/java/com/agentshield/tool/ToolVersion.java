@@ -54,4 +54,18 @@ public class ToolVersion {
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 32)
     private ToolVersionStatus status = ToolVersionStatus.DETECTED;
+
+    /** Snapshot of the independent field-level fingerprints at detection time; null = not computed. */
+    @Column(name = "description_hash", length = 128)
+    private String descriptionHash;
+
+    @Column(name = "input_schema_hash", length = 128)
+    private String inputSchemaHash;
+
+    @Column(name = "output_schema_hash", length = 128)
+    private String outputSchemaHash;
+
+    @JdbcTypeCode(SqlTypes.LONGVARCHAR)
+    @Column(name = "output_schema_json")
+    private String outputSchemaJson;
 }

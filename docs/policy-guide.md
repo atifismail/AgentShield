@@ -14,7 +14,7 @@ AgentShield ships with eleven default rules, evaluated in order. The first rule 
 | 6 | External data transfer | APPROVAL_REQUIRED |
 | 7 | Response contains a secret-like value and destination is external | DENY |
 | 8 | Tool response contains a prompt-injection pattern | DENY |
-| 9 | Agent calls a tool outside its allowed tool groups | DENY |
+| 9 | Agent calls a tool outside its allowed tool groups **or** has no matching grant (governed by `agentshield.grants.transition-mode` — see "Grants" below) | DENY |
 | 10 | Request payload exceeds the configured maximum size | DENY |
 | 11 | MCP-backed tool: agent has no active MCP consent grant | DENY |
 
@@ -41,6 +41,68 @@ immediately without waiting for a fingerprint refresh, and reusing this same rul
 separate one. Whether a *new* approval requires a verified signature at all is a separate,
 earlier check (at `POST /api/tools/{id}/approve` time, not a gateway policy rule) — see
 `docs/operations.md` for the `agentshield.provenance.require-signature-for` trust policy.
+
+## Grants (explicit per-agent tool access)
+
+Rule 9 above is governed by `agentshield.grants.transition-mode`:
+
+| Mode | Behavior |
+|---|---|
+| `GROUPS_ONLY` (default) | Only `Agent.allowedToolGroups` is consulted. Grants are never read. Every existing installation keeps today's exact behavior until an operator explicitly changes this. |
+| `GRANTS_OR_GROUPS` | If any grant (any status) exists for the agent/tool pair, grants alone decide; otherwise the legacy group check still applies. Use this to migrate one agent/tool pair at a time. |
+| `GRANTS_REQUIRED` | Grants alone decide. The legacy group string is never consulted, even if it would have allowed the call. Use for new deployments/demos once the grant model is the intended source of truth. |
+
+**Migration path:** start every existing installation at `GROUPS_ONLY` (the default — no action
+needed). To adopt grants, switch to `GRANTS_OR_GROUPS`, create grants for the agent/tool pairs
+that need them, verify behavior, then switch those pairs (or the whole deployment) to
+`GRANTS_REQUIRED` once every pair that needs access has an explicit grant. Never flip an existing
+production deployment straight to `GRANTS_REQUIRED` — an agent/tool pair with no grant yet is
+denied outright in that mode, with no group fallback.
+
+A grant (`POST /api/agents/{id}/grants`, ADMIN only) may optionally restrict by `actionCategory`,
+`targetEnvironment`, `resourcePathPattern`, and `requiredTokenScope`; a null field on a grant means
+"not restricted on that dimension." A grant must be `ACTIVE` and within its `notBefore`/
+`expiresAt` window, and every restriction it declares must match, or it doesn't count — an active
+grant with the wrong action/environment/resource/scope is exactly as if no grant existed. Grants
+are read live from the database on every gateway call (no caching), so a revoke takes effect on
+the very next invocation.
+
+**Resource path pattern grammar** (`resourcePathPattern`) is a small glob, not a regex: it must be
+anchored (start with `/`), `*` matches within one path segment only (never across a `/`), and it
+rejects `..`, backslashes, a URL scheme (`:`), control characters, `**`, and regex metacharacters
+(`[ ] ( ) + ? { } ^ $ |` and backslash). Example: `/repos/*/pulls` matches `/repos/agentshield/pulls`
+but not `/repos/agentshield/nested/pulls`.
+
+**Non-goal:** resource-path/token-scope restrictions can only ever be satisfied for a tool that has
+a specifically reviewed `ToolAuthorizationNormalizer` extracting those facts from its typed input —
+release one ships zero normalizers, so a grant with either restriction is not yet satisfiable for
+any tool. Do not configure one expecting an ALLOW; it exists so the grant *shape* is ready once a
+normalizer is added and reviewed for a specific tool. AgentShield never authorizes from
+`InvokeRequest.context`, a model's own explanation text, or an unreviewed admin-configured
+JSONPath — only a documented, code-reviewed extraction path.
+
+## Approval routing profiles
+
+An `ApprovalProfile` (`POST /api/approval-profiles`, ADMIN only) routes an already-
+`APPROVAL_REQUIRED` request (rules 5/6 above, or a DLP `APPROVAL_REQUIRED` finding) to a specific
+human role — it never changes the ALLOW/DENY/APPROVAL_REQUIRED decision itself. Resolution picks
+the highest-`priority` **enabled** profile whose every declared predicate (agent/tool/tool-group/
+action-category/environment/risk-tier — each optional, null means "not restricted") matches, once,
+at the moment the approval is created; a profile edited or disabled later never changes an
+already-created approval's routing. When no profile matches, the pre-existing default expiration
+and ADMIN/APPROVER-only behavior applies unchanged. The approving user must hold the resolved role
+(or be ADMIN, which always passes — a documented override). Creating or re-enabling a profile that
+would be ambiguous with another enabled profile at the same priority (identical predicates) is
+rejected as a configuration error.
+
+## Policy evaluation engine (no-tool-forwarding simulation)
+
+`POST /api/evaluations/suites`/`/api/evaluations/runs` run a versioned suite of synthetic fixtures
+through the real policy/grant/MCP-consent components with **zero tool forwarding** — useful for
+testing a policy, grant, or tool change before relying on it in production. See `docs/api.md`
+"Policy evaluations" for the endpoint reference and the shipped default suite's fixture
+categories. A suite is immutable once created — importing again under the same name always
+creates a new version, never edits one in place.
 
 ## Policy override precedence
 
@@ -146,12 +208,12 @@ Policies are versioned by name (`policies` table: `name` + `version`, only one v
 
 ## Policy overrides (no code change required)
 
-The 10 default rules above are fixed Java code. For a rule an operator needs to add or change
+The 11 default rules above are fixed Java code. For a rule an operator needs to add or change
 without a deployment, use `/api/policy-overrides` (or the "Policy overrides" section on the
 Policies page) instead: `{actionCategory, targetEnvironment, toolGroup, agentName, decision,
 reason, priority}`, where any match field left blank means "matches anything."
 
-Overrides are checked **after** all 10 fixed rules, and only when those would otherwise `ALLOW`.
+Overrides are checked **after** all 11 fixed rules, and only when those would otherwise `ALLOW`.
 That ordering is deliberate: an override can add extra restriction, or a deliberately scoped
 extra allowance, but it can never undo a fixed `DENY` or `APPROVAL_REQUIRED` — a disabled agent
 stays denied, a destructive PROD action stays blocked, no override can change that. When multiple

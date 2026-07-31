@@ -90,7 +90,7 @@ class ProductionReadinessScenarioTest extends AbstractIntegrationTest {
         mcpDiscoveryService.discover(server.getId());
 
         Tool tool = toolRepository.findByName(server.getName() + ":echo").orElseThrow();
-        ToolVersion latest = toolVersionRepository.findByToolIdOrderByDetectedAtDesc(tool.getId()).get(0);
+        ToolVersion latest = toolVersionRepository.findByToolIdOrderByDetectedAtDescIdDesc(tool.getId()).get(0);
         assertThat(toolProvenanceRepository.findByToolVersionId(latest.getId())).isPresent();
 
         toolService.approveLatestVersion(tool.getId(), "security-analyst-1");

@@ -1,0 +1,75 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "sarif-subset-v1.json",
+  "title": "Structural subset of SARIF 2.1.0 used to validate AgentShield's evidence SARIF export",
+  "description": "Not the full official SARIF schema (docs/schemas/README.md explains why) — only the shape this exporter actually produces: one run, one tool driver, rules, and results with a message and a logical-location-only location (there is no source file for a policy/evaluation finding).",
+  "type": "object",
+  "required": ["version", "$schema", "runs"],
+  "properties": {
+    "version": { "const": "2.1.0" },
+    "$schema": { "type": "string" },
+    "runs": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["tool", "results"],
+        "properties": {
+          "tool": {
+            "type": "object",
+            "required": ["driver"],
+            "properties": {
+              "driver": {
+                "type": "object",
+                "required": ["name", "rules"],
+                "properties": {
+                  "name": { "type": "string" },
+                  "version": { "type": "string" },
+                  "rules": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "required": ["id"],
+                      "properties": { "id": { "type": "string" } }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "results": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": ["ruleId", "level", "message", "locations"],
+              "properties": {
+                "ruleId": { "type": "string" },
+                "level": { "type": "string", "enum": ["none", "note", "warning", "error"] },
+                "message": {
+                  "type": "object",
+                  "required": ["text"],
+                  "properties": { "text": { "type": "string" } }
+                },
+                "locations": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "logicalLocations": {
+                        "type": "array",
+                        "items": {
+                          "type": "object",
+                          "properties": { "fullyQualifiedName": { "type": "string" } }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

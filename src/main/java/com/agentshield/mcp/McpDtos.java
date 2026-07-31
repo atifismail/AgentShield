@@ -1,9 +1,12 @@
 package com.agentshield.mcp;
 
+import com.agentshield.common.ActionCategory;
+import com.fasterxml.jackson.databind.JsonNode;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import java.time.Instant;
 import java.util.List;
+import java.util.Map;
 
 public final class McpDtos {
 
@@ -76,5 +79,24 @@ public final class McpDtos {
     }
 
     public record DiscoveryResponse(List<String> discoveredOrUpdatedTools, List<String> removedTools) {
+    }
+
+    /**
+     * Thin server-addressing adapter over the generic gateway invoke request
+     * (agentshield_policy_evidence_execution_plan_2026-07-30.md work package 1): {@code toolName}
+     * is the tool's name as known to *this* MCP server ({@code Tool.mcpToolName}), resolved to its
+     * registered, already-approved-or-not {@code Tool} row scoped to this server id — never an
+     * arbitrary server-relative URL or JSON-RPC method. Everything else is forwarded byte-for-byte
+     * into the same {@code GatewayService.invoke} path a generic {@code /api/gateway/invoke} call
+     * would take, so credential, consent, policy, DLP, audit, and approval checks all still apply.
+     */
+    public record McpProxyInvokeRequest(
+            @NotBlank String toolName,
+            @NotBlank String action,
+            @NotNull ActionCategory actionCategory,
+            String targetEnvironment,
+            JsonNode input,
+            Map<String, Object> context
+    ) {
     }
 }

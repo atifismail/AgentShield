@@ -14,34 +14,32 @@ trail, SIEM export, an in-process detection-validation/attack-simulation module,
 AI-coding-assistant code-trust workflow. See [`README.md`](README.md#project-status) and
 [`docs/`](docs) for details.
 
-## Planned — API surface reconciliation
+**Explicit Entitlements and Reproducible Evidence** (see
+`docs/release-notes/explicit-entitlements-baseline.md` for the baseline this release started
+from):
 
-The current API paths are stable and tested, but a few don't match earlier planning-doc naming.
-These are naming/completeness gaps, not correctness bugs:
-
-- A dedicated `POST /api/mcp-servers/{id}/proxy` route distinct from the generic
-  `POST /api/gateway/invoke` path, for callers that want to address a specific MCP server
-  directly.
-- A `GET /api/mcp-servers/{id}/tools` (or equivalent MCP-scoped) listing endpoint, alongside the
-  existing generic `GET /api/tools`.
-- Separate description-hash / input-schema-hash fields on `Tool`, rather than one combined
-  fingerprint hash.
-- `riskTier` and `defaultAction` fields on `Tool`/`McpServer`, surfaced explicitly rather than
-  derived from policy rules at evaluation time.
-
-## Planned — policy and approval model
-
-- An explicit per-agent tool **grant** model (`POST /api/agents/{id}/grants`) with expiry, as a
-  data-driven alternative to the current `allowedToolGroups` string field.
-- An **approval profile** model for routing rules (who can approve what, by risk tier/tool group),
-  rather than a single generic approval queue.
-- Extending the policy engine's condition set (currently agent/tool/action-category/environment)
-  to also cover user, MCP server, resource path, and token scope as first-class conditions.
+- `GET /api/mcp-servers/{id}/tools` (MCP-scoped tool listing) and
+  `POST /api/mcp-servers/{id}/proxy` (thin server-addressing adapter over the generic gateway
+  invoke path), additive alongside the existing generic endpoints.
+- Independent, canonicalized `descriptionHash`/`inputSchemaHash`/`outputSchemaHash` fingerprints
+  on `Tool`, plus `riskTier` and `defaultAction` fields — separate from, and never replacing, the
+  legacy combined `approvedHash`/`currentHash` fingerprint.
+- An explicit, expiring per-agent tool **grant** model (`POST /api/agents/{id}/grants`), governed
+  by `agentshield.grants.transition-mode` (`GROUPS_ONLY` by default — every existing installation
+  is unaffected until an operator opts in to `GRANTS_OR_GROUPS`/`GRANTS_REQUIRED`).
+- **Approval routing profiles** (`POST /api/approval-profiles`) that route an already-
+  `APPROVAL_REQUIRED` request to the correct human role by priority/predicate match, without ever
+  changing the underlying ALLOW/DENY/APPROVAL_REQUIRED decision.
+- A **policy evaluation engine** (`POST /api/evaluations/suites`, `POST /api/evaluations/runs`)
+  that runs a versioned, synthetic fixture suite through the real pre-call policy/grant/MCP-
+  consent components with zero tool forwarding — useful for testing a policy or tool change
+  before relying on it in production.
+- A versioned **evidence bundle** export (`GET /api/governance/evidence?format=json|sarif`) with
+  published JSON Schemas under `docs/schemas/` — additive alongside the existing governance
+  report/markdown export, which is unchanged.
 
 ## Planned — SOC/SIEM
 
-- Formal per-event JSON Schemas for tool-call, policy-decision, and approval events, published
-  alongside the existing flat SIEM export.
 - Exportable Sigma-style detection rule files, in addition to the current `DetectionRule` DB
   catalog.
 

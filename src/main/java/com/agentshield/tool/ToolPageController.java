@@ -34,7 +34,7 @@ public class ToolPageController {
     @GetMapping("/tools/{id}")
     public String detail(@PathVariable Long id, Model model) {
         Tool tool = toolRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("tool " + id + " not found"));
-        List<ToolVersion> versions = toolVersionRepository.findByToolIdOrderByDetectedAtDesc(id);
+        List<ToolVersion> versions = toolVersionRepository.findByToolIdOrderByDetectedAtDescIdDesc(id);
         model.addAttribute("pageTitle", "Tool: " + tool.getName());
         model.addAttribute("tool", tool);
         model.addAttribute("versions", versions);

@@ -1,0 +1,21 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "policy-decision-event-v1.json",
+  "title": "AgentShield policy decision event",
+  "description": "One PolicyDecision row. redactedReason is the operator-facing, already-non-sensitive reason string the policy engine produced — never a raw matched secret/injection payload.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "id", "gatewayRequestId", "decision", "policyVersion", "createdAt"],
+  "properties": {
+    "schemaVersion": { "const": "policy-decision-event-v1" },
+    "id": { "type": "integer" },
+    "gatewayRequestId": { "type": "integer", "description": "Source-event id — joins back to the tool-call-event with the same id." },
+    "decision": { "type": "string", "enum": ["ALLOW", "DENY", "APPROVAL_REQUIRED"] },
+    "ruleId": { "type": ["string", "null"] },
+    "policyVersion": { "type": "string" },
+    "redactedReason": { "type": ["string", "null"] },
+    "riskScore": { "type": ["integer", "null"] },
+    "riskLevel": { "type": ["string", "null"], "enum": ["LOW", "MEDIUM", "HIGH", "CRITICAL", null] },
+    "createdAt": { "type": "string", "format": "date-time" }
+  }
+}
