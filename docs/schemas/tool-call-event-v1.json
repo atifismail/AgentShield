@@ -1,0 +1,22 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "tool-call-event-v1.json",
+  "title": "AgentShield tool call event",
+  "description": "One resolved gateway request in an evidence bundle. Never includes a raw request body, raw tool response, credential, or encrypted value — see evidence-bundle-v1.json for the enclosing envelope.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "id", "correlationId", "agentId", "actionCategory", "status", "createdAt"],
+  "properties": {
+    "schemaVersion": { "const": "tool-call-event-v1" },
+    "id": { "type": "integer", "description": "GatewayRequest id (source-event id)." },
+    "correlationId": { "type": "string" },
+    "agentId": { "type": "integer" },
+    "agentName": { "type": ["string", "null"] },
+    "toolId": { "type": ["integer", "null"] },
+    "toolName": { "type": ["string", "null"] },
+    "actionCategory": { "type": "string", "enum": ["READ", "WRITE", "DESTRUCTIVE", "CREDENTIAL_ACCESS", "EXTERNAL_TRANSFER"] },
+    "targetEnvironment": { "type": ["string", "null"] },
+    "status": { "type": "string", "description": "GatewayRequestStatus — e.g. ALLOWED, DENIED, PENDING_APPROVAL, COMPLETED, FAILED." },
+    "createdAt": { "type": "string", "format": "date-time" }
+  }
+}

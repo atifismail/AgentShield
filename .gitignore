@@ -31,3 +31,5 @@ design-*.md
 
 # Local tooling config, not part of the project
 .claude/
+# Added by code-review-graph
+.code-review-graph/

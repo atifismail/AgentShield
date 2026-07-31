@@ -292,7 +292,7 @@ class GatewayServiceIntegrationTest extends AbstractIntegrationTest {
         ApprovalRequest approval = approvalRequestRepository.findById(approvalId).orElseThrow();
         assertThat(approval.getStatus()).isEqualTo(ApprovalStatus.PENDING);
 
-        var executed = approvalService.approve(approvalId, "security-analyst-1");
+        var executed = approvalService.approve(approvalId, "security-analyst-1", null);
         assertThat(executed.status()).isEqualTo(ApprovalStatus.APPROVED);
         assertThat(executed.executionResult().decision()).isEqualTo(PolicyDecisionType.ALLOW);
 
@@ -317,7 +317,7 @@ class GatewayServiceIntegrationTest extends AbstractIntegrationTest {
         assertThat(approval.getGatewayRequest().getRequestBodyJson()).contains(largeValue);
         assertThat(approval.getGatewayRequest().getRequestSummary().length()).isLessThanOrEqualTo(4000);
 
-        var executed = approvalService.approve(approvalId, "security-analyst-1");
+        var executed = approvalService.approve(approvalId, "security-analyst-1", null);
         assertThat(executed.executionResult().decision()).isEqualTo(PolicyDecisionType.ALLOW);
         assertThat(executed.executionResult().result().get("notes").asText()).isEqualTo(largeValue);
     }
@@ -330,7 +330,7 @@ class GatewayServiceIntegrationTest extends AbstractIntegrationTest {
         var response = invoke(tool, ActionCategory.WRITE, "PROD");
         Long approvalId = response.getBody().approvalRequestId();
 
-        var rejected = approvalService.reject(approvalId, "security-analyst-1");
+        var rejected = approvalService.reject(approvalId, "security-analyst-1", null);
         assertThat(rejected.status()).isEqualTo(ApprovalStatus.REJECTED);
 
         ApprovalRequest approval = approvalRequestRepository.findById(approvalId).orElseThrow();
@@ -348,7 +348,7 @@ class GatewayServiceIntegrationTest extends AbstractIntegrationTest {
         assertThat(approvalId).isNotNull();
 
         long incidentsBefore = incidentRepository.count();
-        var executed = approvalService.approve(approvalId, "security-analyst-1");
+        var executed = approvalService.approve(approvalId, "security-analyst-1", null);
 
         assertThat(executed.executionResult().decision()).isEqualTo(PolicyDecisionType.DENY);
         assertThat(executed.executionResult().reason()).contains("secret-like value");

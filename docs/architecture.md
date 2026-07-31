@@ -47,7 +47,11 @@ JVM — see `docs/operations.md` for what a production deployment must enforce e
 
 **DLP** (`com.agentshield.dlp`) — resolves an operator-configured `ClassificationProfile` (which detectors run, and what to do on a match: allow/redact/tokenize/block/approval-required) and runs it against a piece of content, whether that's the gateway's inbound tool-call arguments, a standalone RAG-chunk scan request, or (in principle) any other text a caller wants classified. `RedactionService` replaces a matched span with an irreversible `[REDACTED:<CATEGORY>]` placeholder by default, or a reversible opaque token if reversible tokenization is explicitly enabled. Findings are recorded the same way response-scanning findings already are — indicator/category/confidence/location only, never the matched substring. When no profile has been configured, scanning still runs against a safe built-in default (all detectors on, BLOCK on any match).
 
-**Approval workflow** (`com.agentshield.approval`) — queues actions that policy marks as requiring human sign-off, and exposes approve/reject endpoints with expiration handling.
+**Grants** (`com.agentshield.grant`) — explicit, expiring per-agent tool grants, a data-driven alternative to the legacy `Agent.allowedToolGroups` string. `agentshield.grants.transition-mode` controls whether they're consulted at all: `GROUPS_ONLY` (default — every existing installation is unaffected, grants are never read) only runs the legacy group check; `GRANTS_OR_GROUPS` uses an explicit grant once one exists for an agent/tool pair, falling back to the legacy group check only while none exists yet; `GRANTS_REQUIRED` ignores the legacy group string entirely. `GrantEvaluationService` reads live from the database on every gateway call — no caching — so a revoke takes effect on the very next invocation. Resource-path/token-scope restrictions can only ever be satisfied for a tool with a specifically reviewed `ToolAuthorizationNormalizer` (release one ships none); `NormalizedAuthorizationFacts` are never derived from arbitrary agent-supplied `context` text.
+
+**Approval workflow** (`com.agentshield.approval`) — queues actions that policy marks as requiring human sign-off, and exposes approve/reject endpoints with expiration handling. Approval routing profiles (`ApprovalProfile`/`ApprovalProfileResolutionService`) route an already-`APPROVAL_REQUIRED` request to a specific human role by highest-priority matching predicate (agent/tool/tool-group/action-category/environment/risk-tier) — resolved once, at creation time, and never re-resolved if the profile later changes; when no profile matches, the pre-existing default expiration and ADMIN/APPROVER-only behavior applies unchanged. `ApprovalService` enforces the resolved role at decision time (ADMIN always passes, per documented override).
+
+**Policy evaluation engine** (`com.agentshield.evaluation`) — runs a versioned suite of synthetic fixtures through the real pre-call policy/grant/MCP-consent components (`PolicyEngine`, `GrantEvaluationService`, `McpConsentService`, `DlpScanService`) with **zero tool forwarding**: no `GatewayRequest`, no `ToolForwarder`, no MCP transport manager, no OAuth token acquisition. Every evaluation case builds a fully synthetic, non-persisted `Agent`/`Tool` pair in memory (or references dedicated `eval-fixture-*` seed rows for the two fixture categories that genuinely need a real, non-matching grant row — see `BuiltInEvaluationSuiteProvider`). A suite is immutable once created: editing it always creates a new `(name, version)` row rather than mutating one in place, so a historical run stays reproducible against the exact version it ran.
 
 **Audit** (`com.agentshield.audit`) — every gateway request produces one or more audit events (received, policy decision, response scan, outcome), correlated by a `correlationId` so a security analyst can reconstruct the full timeline of a single call.
 
@@ -57,16 +61,35 @@ JVM — see `docs/operations.md` for what a production deployment must enforce e
 
 **SOC Validation Module** (`com.agentshield.siem.validation`) — the research plan's "AI SOC Validation Lab" (N1) folded into AgentShield as a module: adds the RAG-leakage and code-assistant-secret scenarios to the simulator above, plus a vendor-neutral `AlertImportService` that checks whether a downstream SIEM's actual exported alerts match an `ExpectedDetectionsManifest`. The 13th scenario, MCP token misuse, is validated by a dedicated test rather than the live simulator (see `docs/api.md`); a 14th from the original plan, certificate-expiry-near-miss, is out of scope entirely (a TrustAtlas concept).
 
+**Evidence export** (`com.agentshield.governance.EvidenceExportService`) — a versioned JSON bundle (schemas under `docs/schemas/`) of tool-call/policy-decision/approval/evaluation-run events for a date range, plus a constrained SARIF 2.1.0 projection of non-ALLOW policy decisions and failed/errored evaluation runs. Every field is derived from existing operational tables (no new mutable source of truth) and deliberately excludes raw credentials, request bodies, raw tool responses, encrypted values, and arbitrary audit metadata — additive alongside, and independent of, the existing `GovernanceReportService` AI-RMF markdown/JSON report.
+
+## Authorization ordering for a single gateway request
+
+`PolicyEngine.evaluateRequest` runs a fixed pipeline; the first rule that doesn't ALLOW decides the outcome:
+
+1. Disabled agent
+2. Unapproved tool (PENDING/REJECTED)
+3. Schema/description drift (legacy combined hash, or an output-schema-only fingerprint change)
+4. Production destructive action (always denied outright)
+5. Production write (requires approval)
+6. External data transfer (requires approval)
+7. **Tool-group-or-grant access** — governed by `agentshield.grants.transition-mode` (see the Grants component above); this is the one rule whose *source of truth* changes by configuration, never its position in the pipeline
+8. Oversized payload
+9. Missing MCP consent (MCP-backed tools only — a grant/group pass is necessary but never sufficient for these)
+10. Database-backed policy overrides — consulted **only** when every rule above would otherwise ALLOW; an override can narrow (or add a scoped, deliberate allowance) but can never turn a fixed-rule or grant denial into an ALLOW
+
+DLP scanning of inbound tool-call arguments (and, after forwarding, the tool's response) follows the same "only tighten, never weaken" precedence, layered on top of whatever the pipeline above already decided.
+
 ## Data flow for a single tool call
 
 1. Agent sends a normalized request to `/api/gateway/invoke` with its bearer token.
 2. Gateway authenticates the agent and persists a `GatewayRequest`.
-3. Policy engine evaluates the 10 default rules against the request (agent status, tool approval/drift state, environment, action category, allowed tool groups, payload size).
+3. Policy engine evaluates the pipeline above against the request (agent status, tool approval/drift state, environment, action category, grant/allowed-tool-group access, payload size, MCP consent).
 4. Risk engine scores the request.
 4a. If the rules above would otherwise ALLOW, the DLP scan runs against the inbound tool-call arguments; a BLOCK/APPROVAL_REQUIRED finding overrides the ALLOW, a REDACT/TOKENIZE finding swaps in the sanitized arguments before the next step.
 5. If ALLOW: the gateway forwards the call to the tool's registered endpoint, scans the response for secrets/prompt-injection/PII, records a `GatewayToolResponse` forensic row (status code, response hash, sanitized summary, matched detector indicators — raw body only if retention is explicitly enabled, see `docs/operations.md`), and returns the result to the agent.
 6. If DENY: the call never reaches the tool; the agent gets a reason.
-7. If APPROVAL_REQUIRED: an `ApprovalRequest` is created and queued for a human; the agent gets a reference id.
+7. If APPROVAL_REQUIRED: an `ApprovalRequest` is created (routed to a specific role if an `ApprovalProfile` matches, using that profile's own expiration if it declares one) and queued for a human; the agent gets a reference id.
 8. Every step writes an audit event.
 
 ## Why this design

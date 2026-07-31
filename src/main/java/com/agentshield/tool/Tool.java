@@ -82,6 +82,36 @@ public class Tool {
     @Column(name = "mcp_tool_name")
     private String mcpToolName;
 
+    /**
+     * Independent, canonicalized fingerprints (work package 1). Null means "not computed yet",
+     * i.e. this tool predates the fingerprint-format-version-1 migration or was never refreshed
+     * since — never treat null as "confirmed unchanged". See {@link ToolFingerprintService}.
+     */
+    @Column(name = "description_hash", length = 128)
+    private String descriptionHash;
+
+    @Column(name = "input_schema_hash", length = 128)
+    private String inputSchemaHash;
+
+    @Column(name = "output_schema_hash", length = 128)
+    private String outputSchemaHash;
+
+    /** Raw output schema, when the tool/discovery source provides one — null for most tools. */
+    @JdbcTypeCode(SqlTypes.LONGVARCHAR)
+    @Column(name = "output_schema_json")
+    private String outputSchemaJson;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "risk_tier", nullable = false, length = 32)
+    private ToolRiskTier riskTier = ToolRiskTier.UNCLASSIFIED;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "default_action", nullable = false, length = 32)
+    private ToolDefaultAction defaultAction = ToolDefaultAction.REVIEW;
+
+    @Column(name = "fingerprint_format_version", nullable = false)
+    private short fingerprintFormatVersion = 1;
+
     public boolean isMcpBacked() {
         return mcpServerId != null;
     }
@@ -92,6 +122,13 @@ public class Tool {
 
     public boolean hasDrift() {
         return approvedHash != null && currentHash != null && !approvedHash.equals(currentHash);
+    }
+
+    /** Whether description/input-schema fingerprints have ever been computed for this tool. */
+    public ToolFingerprintState fingerprintState() {
+        return descriptionHash != null && inputSchemaHash != null
+                ? ToolFingerprintState.AVAILABLE
+                : ToolFingerprintState.LEGACY_UNAVAILABLE;
     }
 
     public void touch() {

@@ -64,6 +64,7 @@ All runtime configuration is environment-variable driven (see `src/main/resource
 | `AGENTSHIELD_ADMIN_USER` | Bootstrap admin username | `admin` |
 | `AGENTSHIELD_ADMIN_PASSWORD` | Bootstrap admin password | `changeit` — **change this before any non-local use** |
 | `AGENTSHIELD_ENABLE_API_DOCS` | Turns on `/swagger-ui.html` + `/v3/api-docs` under the `prod` profile | `false` (always on outside `prod`) |
+| `agentshield.grants.transition-mode` | `GROUPS_ONLY` / `GRANTS_OR_GROUPS` / `GRANTS_REQUIRED` — see `docs/policy-guide.md` "Grants" for the migration path | `GROUPS_ONLY` |
 
 ## Database migrations
 
@@ -74,6 +75,40 @@ both, with the same version number and the same effect, even though the DDL synt
 Never modify a migration that has already been applied to a shared environment — add a new one
 instead. `spring.jpa.hibernate.ddl-auto` is fixed at `validate`; Hibernate will refuse to start
 if the schema and entities disagree, which is intentional.
+
+Current highest migration version: **V23** (`evaluation_corpus` — evaluation suites/cases/runs/
+results). All migrations through V23 are purely additive (new tables, or new nullable/defaulted
+columns on existing tables); none of them are destructive, and Flyway migrations are forward-only
+in this project — there is no automated `undo` migration. Because every V20-V23 change is
+additive-only, the practical rollback path for a bad deployment is: roll back the *application
+binary* to the previous version (the old code simply ignores the new columns/tables, which is
+safe since none of them are `NOT NULL` without a default) rather than attempting a schema
+down-migration. Restoring from a pre-upgrade database backup remains the fallback of last resort
+— see "Backup and restore" below.
+
+### Evaluation suite import controls
+
+`POST /api/evaluations/suites` caps a single import at 500 cases and 20,000 characters per case's
+`inputFixtureJson` (`EvaluationDtos.CreateSuiteRequest`/`CaseImport` bean validation) — a request
+exceeding either limit is rejected with 400 before anything is persisted. Import accepts JSON
+only; there is no YAML parser and no mechanism to upload or execute arbitrary code as part of a
+suite. A case's `inputFixtureJson` is *not* required to parse as a well-formed fixture at import
+time — a deliberately malformed one is how the shipped built-in suite proves the evaluation engine
+fails closed to an `ERROR` result at run time, rather than silently passing. ADMIN only may create
+suites; a suite can never be edited in place — importing under an existing name always creates a
+new, separately versioned row.
+
+### Evidence export retention and redaction
+
+`GET /api/governance/evidence` has no retention window of its own — it queries whatever
+`GatewayRequest`/`PolicyDecision`/`ApprovalRequest`/`EvaluationRun` rows already exist for the
+requested date range, so evidence availability follows however long you already retain those
+tables (see "Backup and restore" and `docs/schemas/` for the exported shapes). The export excludes
+raw credentials, request bodies, raw tool responses, encrypted values, and arbitrary audit
+metadata by construction (`EvidenceExportService` only ever reads already-redacted fields such as
+`PolicyDecision.reason`, never a stored raw request/response body). `redactionPolicyVersion` in
+the JSON envelope is currently a static `"1"` — bump it, and document what changed, the day this
+service's field selection changes in a way that affects what's included or redacted.
 
 ## Agent token rotation
 

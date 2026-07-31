@@ -166,13 +166,17 @@ public class McpDiscoveryService {
             String description = toolNode.path("description").asText("");
             JsonNode inputSchema = toolNode.path("inputSchema");
             String schemaJson = inputSchema.isMissingNode() ? "{}" : inputSchema.toString();
+            // Not part of the standard MCP tools/list response, but some servers include it —
+            // captured when present so its fingerprint can be tracked independently (work package 1).
+            JsonNode outputSchema = toolNode.path("outputSchema");
+            String outputSchemaJson = outputSchema.isMissingNode() || outputSchema.isNull() ? null : outputSchema.toString();
             String qualifiedName = server.getName() + ":" + mcpToolName;
             discoveredNames.add(qualifiedName);
             fingerprintInput.append(qualifiedName).append('|').append(description).append('|').append(schemaJson).append(';');
 
             Tool tool = toolService.upsertDiscoveredTool(qualifiedName, ToolType.MCP, server.getToolGroup(),
                     server.getEndpointUrl(), server.getOwner(), server.getEnvironment(), description, schemaJson,
-                    server.getId(), mcpToolName);
+                    outputSchemaJson, server.getId(), mcpToolName);
             upserted.add(tool);
         }
 

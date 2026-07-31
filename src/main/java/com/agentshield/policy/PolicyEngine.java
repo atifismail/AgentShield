@@ -3,6 +3,10 @@ package com.agentshield.policy;
 import com.agentshield.common.ActionCategory;
 import com.agentshield.common.PolicyDecisionType;
 import com.agentshield.dlp.DlpAction;
+import com.agentshield.grant.GrantDecision;
+import com.agentshield.grant.GrantEvaluationService;
+import com.agentshield.grant.GrantProperties;
+import com.agentshield.grant.GrantTransitionMode;
 import com.agentshield.mcp.McpConsentService;
 import com.agentshield.risk.DetectionMatch;
 import com.agentshield.risk.DetectionResult;
@@ -27,14 +31,29 @@ public class PolicyEngine implements PolicyEvaluator {
 
     private final PolicyOverrideRepository overrideRepository;
     private final McpConsentService mcpConsentService;
+    private final GrantEvaluationService grantEvaluationService;
+    private final GrantProperties grantProperties;
 
-    public PolicyEngine(PolicyOverrideRepository overrideRepository, McpConsentService mcpConsentService) {
+    public PolicyEngine(PolicyOverrideRepository overrideRepository, McpConsentService mcpConsentService,
+            GrantEvaluationService grantEvaluationService, GrantProperties grantProperties) {
         this.overrideRepository = overrideRepository;
         this.mcpConsentService = mcpConsentService;
+        this.grantEvaluationService = grantEvaluationService;
+        this.grantProperties = grantProperties;
     }
 
     @Override
     public PolicyOutcome evaluateRequest(PolicyEvaluationContext ctx) {
+        return evaluateRequest(ctx, grantProperties.getTransitionMode());
+    }
+
+    /**
+     * Same pipeline as {@link #evaluateRequest(PolicyEvaluationContext)}, but with the grant
+     * transition mode supplied explicitly instead of read from the live deployment config —
+     * used only by the evaluation engine (work package 4) so a suite case can simulate "what
+     * would happen under GRANTS_REQUIRED" without touching the real global setting.
+     */
+    public PolicyOutcome evaluateRequest(PolicyEvaluationContext ctx, GrantTransitionMode transitionMode) {
         PolicyOutcome outcome;
         if ((outcome = denyDisabledAgent(ctx)) != null) {
             return outcome;
@@ -54,7 +73,7 @@ public class PolicyEngine implements PolicyEvaluator {
         if ((outcome = requireApprovalForExternalTransfer(ctx)) != null) {
             return outcome;
         }
-        if ((outcome = denyOutsideAllowedGroup(ctx)) != null) {
+        if ((outcome = evaluateToolGroupOrGrantAccess(ctx, transitionMode)) != null) {
             return outcome;
         }
         if ((outcome = denyOversizedPayload(ctx)) != null) {
@@ -142,9 +161,33 @@ public class PolicyEngine implements PolicyEvaluator {
     }
 
     /**
-     * Rule 9: deny agents calling tools outside their allowed groups. An agent with no
-     * allowed tool groups configured is denied everything (least privilege / deny-by-default).
+     * Rule 9 (work package 2): governed by {@code agentshield.grants.transition-mode}.
+     * {@code GROUPS_ONLY} (default, preserves every existing installation's behavior exactly)
+     * runs only the legacy allowed-tool-group check below. {@code GRANTS_OR_GROUPS} uses an
+     * explicit grant once one exists for this agent/tool pair, falling back to the legacy group
+     * check only while none exists yet. {@code GRANTS_REQUIRED} ignores the legacy group string
+     * entirely — an agent/tool pair with no matching active grant is denied outright.
      */
+    PolicyOutcome evaluateToolGroupOrGrantAccess(PolicyEvaluationContext ctx, GrantTransitionMode mode) {
+        if (mode != GrantTransitionMode.GROUPS_ONLY) {
+            GrantDecision decision = grantEvaluationService.evaluate(ctx.agent().getId(), ctx.tool().getId(),
+                    ctx.actionCategory(), ctx.targetEnvironment(), ctx.authorizationFacts(), mode);
+            if (decision == GrantDecision.SATISFIED) {
+                return null;
+            }
+            if (decision == GrantDecision.DENIED) {
+                return new PolicyOutcome(PolicyDecisionType.DENY,
+                        "agent '" + ctx.agent().getName() + "' has no matching active grant for tool '"
+                                + ctx.tool().getName() + "'",
+                        "deny-no-matching-grant");
+            }
+            // NOT_APPLICABLE: GRANTS_OR_GROUPS with no grant yet created for this pair — fall through.
+        }
+        return denyOutsideAllowedGroup(ctx);
+    }
+
+    /** Deny agents calling tools outside their allowed groups. An agent with no allowed tool
+     * groups configured is denied everything (least privilege / deny-by-default). */
     PolicyOutcome denyOutsideAllowedGroup(PolicyEvaluationContext ctx) {
         var allowedGroups = ctx.agent().allowedToolGroupSet();
         if (!allowedGroups.contains(ctx.tool().getToolGroup())) {

@@ -14,12 +14,15 @@ import com.agentshield.gateway.GatewayRequest;
 import com.agentshield.gateway.GatewayService;
 import com.agentshield.policy.PolicyDecisionRepository;
 import com.agentshield.risk.RiskAssessment;
+import com.agentshield.security.UserRole;
 import com.agentshield.tool.Tool;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.time.Instant;
 import java.util.List;
 import org.springframework.scheduling.annotation.Scheduled;
+import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -60,8 +63,9 @@ public class ApprovalService {
     }
 
     @Transactional
-    public ApprovalResponse approve(Long id, String approvedBy) {
+    public ApprovalResponse approve(Long id, String approvedBy, Authentication authentication) {
         ApprovalRequest approval = requirePending(id);
+        requireAuthorizedRole(approval, authentication);
         approval.setStatus(ApprovalStatus.APPROVED);
         approval.setApprovedBy(approvedBy);
         approval.setApprovedAt(Instant.now());
@@ -90,8 +94,9 @@ public class ApprovalService {
     }
 
     @Transactional
-    public ApprovalResponse reject(Long id, String rejectedBy) {
+    public ApprovalResponse reject(Long id, String rejectedBy, Authentication authentication) {
         ApprovalRequest approval = requirePending(id);
+        requireAuthorizedRole(approval, authentication);
         approval.setStatus(ApprovalStatus.REJECTED);
         approval.setRejectedBy(rejectedBy);
         approval.setRejectedAt(Instant.now());
@@ -122,6 +127,37 @@ public class ApprovalService {
                         AuditSeverity.WARNING, "approval " + approval.getId() + " expired without a decision", null);
             }
         }
+    }
+
+    /**
+     * "The approving user must possess the assigned role. An ADMIN can always resolve an
+     * approval as existing product policy permits" (work package 3). When no profile matched
+     * this approval, the pre-existing behavior applies unchanged: ADMIN or APPROVER. Documented
+     * override: ADMIN always passes, regardless of routing.
+     */
+    private void requireAuthorizedRole(ApprovalRequest approval, Authentication authentication) {
+        if (authentication == null) {
+            return;
+        }
+        if (hasRole(authentication, UserRole.ADMIN)) {
+            return;
+        }
+        UserRole required = approval.getAssignedRole();
+        if (required == null) {
+            if (!hasRole(authentication, UserRole.APPROVER)) {
+                throw new AccessDeniedException("only ADMIN or APPROVER may resolve an approval with no routing profile");
+            }
+            return;
+        }
+        if (!hasRole(authentication, required)) {
+            throw new AccessDeniedException(
+                    "approval " + approval.getId() + " is routed to role " + required + "; caller does not hold it");
+        }
+    }
+
+    private boolean hasRole(Authentication authentication, UserRole role) {
+        return authentication.getAuthorities().stream()
+                .anyMatch(authority -> authority.getAuthority().equals("ROLE_" + role.name()));
     }
 
     private ApprovalRequest requirePending(Long id) {

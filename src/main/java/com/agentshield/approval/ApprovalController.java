@@ -5,6 +5,7 @@ import com.agentshield.approval.ApprovalDtos.ApprovalResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import java.util.List;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -36,12 +37,14 @@ public class ApprovalController {
     }
 
     @PostMapping("/{id}/approve")
-    public ApprovalResponse approve(@PathVariable Long id, @Valid @RequestBody ApprovalDecisionRequest request) {
-        return approvalService.approve(id, request.decidedBy());
+    public ApprovalResponse approve(@PathVariable Long id, @Valid @RequestBody ApprovalDecisionRequest request,
+            Authentication authentication) {
+        return approvalService.approve(id, request.decidedBy(), authentication);
     }
 
     @PostMapping("/{id}/reject")
-    public ApprovalResponse reject(@PathVariable Long id, @Valid @RequestBody ApprovalDecisionRequest request) {
-        return approvalService.reject(id, request.decidedBy());
+    public ApprovalResponse reject(@PathVariable Long id, @Valid @RequestBody ApprovalDecisionRequest request,
+            Authentication authentication) {
+        return approvalService.reject(id, request.decidedBy(), authentication);
     }
 }

@@ -55,13 +55,29 @@ public class SecurityConfig {
             // same as any other nonexistent path here) rather than the docs themselves.
             auth.requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll();
             auth.requestMatchers("/api/gateway/**").permitAll();
+            // Same authorization model as /api/gateway/**: it's a thin adapter onto the exact same
+            // GatewayService.invoke() path, so the agent bearer token is checked inside the handler,
+            // not by a Spring Security role rule (work package 1, McpServerController#proxy).
+            auth.requestMatchers("/api/mcp-servers/*/proxy").permitAll();
             if (demoProfileActive) {
                 auth.requestMatchers("/demo/**").permitAll();
             }
+            // More specific than the blanket /api/agents/** rule below, so it must be declared
+            // first — Spring Security uses the first matcher that matches (work package 2):
+            // SECURITY_ANALYST may read grants, but only ADMIN may create/revoke them.
+            auth.requestMatchers(org.springframework.http.HttpMethod.GET, "/api/agents/*/grants")
+                    .hasAnyRole("ADMIN", "SECURITY_ANALYST");
             auth.requestMatchers("/api/agents/**").hasRole("ADMIN");
             auth.requestMatchers("/api/tools/*/approve", "/api/tools/*/reject").hasAnyRole("ADMIN", "TOOL_OWNER", "SECURITY_ANALYST");
             auth.requestMatchers("/api/tools/*/provenance/**").hasAnyRole("ADMIN", "SECURITY_ANALYST");
             auth.requestMatchers("/api/policies/**", "/api/policy-overrides/**").hasAnyRole("ADMIN", "SECURITY_ANALYST");
+            auth.requestMatchers("/api/approval-profiles/**").hasAnyRole("ADMIN", "SECURITY_ANALYST");
+            // Suite creation is ADMIN only (work package 4, "synthetic fixture validation" —
+            // only a trusted operator should be able to author what a run compares against);
+            // reading suites/runs and triggering a run are open to SECURITY_ANALYST too.
+            auth.requestMatchers(org.springframework.http.HttpMethod.POST, "/api/evaluations/suites",
+                    "/api/evaluations/suites/built-in").hasRole("ADMIN");
+            auth.requestMatchers("/api/evaluations/**").hasAnyRole("ADMIN", "SECURITY_ANALYST");
             auth.requestMatchers("/api/dlp/profiles/**").hasAnyRole("ADMIN", "SECURITY_ANALYST");
             // CI_SCANNER is a machine-client role for scripts/agentshield-code-scan.sh and CI
             // pipelines submitting scan results via Basic Auth — deliberately not the gateway's
@@ -75,7 +91,12 @@ public class SecurityConfig {
                     .hasAnyRole("ADMIN", "SECURITY_ANALYST", "CI_SCANNER");
             auth.requestMatchers("/api/governance/**").hasAnyRole("ADMIN", "SECURITY_ANALYST");
             auth.requestMatchers("/api/siem/**").hasAnyRole("ADMIN", "SECURITY_ANALYST");
-            auth.requestMatchers("/api/approvals/*/approve", "/api/approvals/*/reject").hasAnyRole("ADMIN", "APPROVER");
+            // Broad at the HTTP layer; ApprovalService.requireAuthorizedRole enforces the exact
+            // role a routing profile assigned (or falls back to ADMIN/APPROVER when no profile
+            // matched — work package 3). Any role a profile could plausibly target must reach
+            // the service for that finer check to have something to enforce.
+            auth.requestMatchers("/api/approvals/*/approve", "/api/approvals/*/reject")
+                    .hasAnyRole("ADMIN", "APPROVER", "SECURITY_ANALYST", "TOOL_OWNER", "AUDITOR");
             auth.requestMatchers("/api/incidents/*/status").hasAnyRole("ADMIN", "SECURITY_ANALYST");
             auth.requestMatchers("/api/mcp-servers/*/auth").hasRole("ADMIN");
             auth.requestMatchers("/api/mcp-servers/*/stdio/start", "/api/mcp-servers/*/stdio/stop").hasRole("ADMIN");
@@ -118,7 +139,7 @@ public class SecurityConfig {
         http.csrf(csrf -> csrf
                 .csrfTokenRepository(CookieCsrfTokenRepository.withHttpOnlyFalse())
                 .csrfTokenRequestHandler(new CsrfTokenRequestAttributeHandler())
-                .ignoringRequestMatchers("/api/gateway/**", "/demo/**")
+                .ignoringRequestMatchers("/api/gateway/**", "/api/mcp-servers/*/proxy", "/demo/**")
                 .ignoringRequestMatchers(request -> {
                     String header = request.getHeader("Authorization");
                     return header != null && header.regionMatches(true, 0, "Basic ", 0, 6);

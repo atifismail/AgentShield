@@ -124,7 +124,7 @@ class ApprovalReuseHardeningTest extends AbstractIntegrationTest {
         approval.setExpiresAt(Instant.now().minusSeconds(60));
         approvalRequestRepository.saveAndFlush(approval);
 
-        assertThatThrownBy(() -> approvalService.approve(approvalId, "security-analyst-1"))
+        assertThatThrownBy(() -> approvalService.approve(approvalId, "security-analyst-1", null))
                 .isInstanceOf(ConflictException.class)
                 .hasMessageContaining("expired");
 
@@ -157,9 +157,9 @@ class ApprovalReuseHardeningTest extends AbstractIntegrationTest {
                     go.await();
                     try {
                         if (i % 2 == 0) {
-                            approvalService.approve(approvalId, "security-analyst-" + i);
+                            approvalService.approve(approvalId, "security-analyst-" + i, null);
                         } else {
-                            approvalService.reject(approvalId, "security-analyst-" + i);
+                            approvalService.reject(approvalId, "security-analyst-" + i, null);
                         }
                         succeeded.incrementAndGet();
                     } catch (ConflictException e) {

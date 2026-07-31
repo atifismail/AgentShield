@@ -58,7 +58,8 @@ public class ToolController {
 
     @PostMapping("/{id}/refresh")
     public ToolResponse refresh(@PathVariable Long id, @RequestBody UpdateToolFingerprintRequest request) {
-        return ToolResponse.from(toolService.refreshFingerprint(id, request.schemaJson(), request.description()));
+        return ToolResponse.from(toolService.refreshFingerprint(id, request.schemaJson(), request.description(),
+                request.outputSchemaJson(), request.riskTier(), request.defaultAction()));
     }
 
     @PostMapping("/{id}/approve")

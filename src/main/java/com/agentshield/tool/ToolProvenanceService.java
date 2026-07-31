@@ -78,7 +78,7 @@ public class ToolProvenanceService {
             String expectedIssuer, String verifiedBy) {
         Tool tool = toolRepository.findById(toolId)
                 .orElseThrow(() -> new ResourceNotFoundException("tool " + toolId + " not found"));
-        ToolVersion latestVersion = versionRepository.findByToolIdOrderByDetectedAtDesc(toolId).stream().findFirst()
+        ToolVersion latestVersion = versionRepository.findByToolIdOrderByDetectedAtDescIdDesc(toolId).stream().findFirst()
                 .orElseThrow(() -> new ResourceNotFoundException("tool " + toolId + " has no versions"));
         ToolProvenance provenance = provenanceRepository.findByToolVersionId(latestVersion.getId())
                 .orElseThrow(() -> new ResourceNotFoundException(
